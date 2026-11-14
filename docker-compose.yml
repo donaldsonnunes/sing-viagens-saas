@@ -1,0 +1,51 @@
+services:
+  # Aplicação Web & API SaaS Sing Viagens
+  sing-web:
+    container_name: singviagens-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://sing_admin:sing_secret_2026@sing-db:5432/singviagens?schema=public
+    volumes:
+      # Mantém persistência local imediata das regras de markup e histórico de pesquisas/compras
+      - ./src/data:/app/src/data
+    depends_on:
+      sing-db:
+        condition: service_healthy
+    networks:
+      - sing-network
+
+  # Banco de Dados Relacional Oficial do SaaS (PostgreSQL 16)
+  sing-db:
+    container_name: singviagens-postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: sing_admin
+      POSTGRES_PASSWORD: sing_secret_2026
+      POSTGRES_DB: singviagens
+    volumes:
+      - sing_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sing_admin -d singviagens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sing-network
+
+volumes:
+  sing_pgdata:
+    name: singviagens_pgdata
+
+networks:
+  sing-network:
+    name: singviagens_network
+    driver: bridge

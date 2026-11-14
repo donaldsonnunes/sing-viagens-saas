@@ -1,0 +1,151 @@
+{
+  "pricingConfig": {
+    "defaultMarkupPercent": 11.5,
+    "fixedEmissionFeePerPassenger": 39,
+    "childDiscountPercent": 25,
+    "infantDiscountPercent": 85,
+    "singNegotiatedDiscountVsPublicPercent": 19.5,
+    "airlineSpecificMarkup": {
+      "LATAM": 11.5,
+      "GOL": 11,
+      "AZUL": 12,
+      "TAP": 10.5,
+      "AMERICAN": 10,
+      "AIRFRANCE": 10.5
+    },
+    "updatedAt": "2026-11-14T22:35:05.229Z"
+  },
+  "users": [
+    {
+      "id": "usr-admin-1",
+      "name": "Diretoria Sing Viagens (Admin)",
+      "email": "admin@singviagens.com.br",
+      "passwordHash": "sing2026",
+      "phone": "(11) 99999-0000",
+      "role": "ADMIN",
+      "createdAt": "2026-11-14T10:00:00.000Z"
+    },
+    {
+      "id": "usr-demo-1",
+      "name": "Cliente VIP Sing",
+      "email": "cliente@singviagens.com.br",
+      "passwordHash": "123456",
+      "phone": "(11) 98888-7777",
+      "role": "CUSTOMER",
+      "createdAt": "2026-11-14T11:00:00.000Z"
+    }
+  ],
+  "searchHistory": [
+    {
+      "id": "sch-1794698612420",
+      "userId": "usr-demo-1",
+      "userEmail": "cliente@singviagens.com.br",
+      "origin": "BSB",
+      "destination": "GIG",
+      "departureDate": "2026-12-10",
+      "returnDate": "2026-12-15",
+      "tripType": "ROUND_TRIP",
+      "adults": 2,
+      "childrenAges": [
+        8
+      ],
+      "cabinClass": "ECONOMY",
+      "lowestSingPrice": 2700,
+      "lowestAirlineDirectPrice": 2802,
+      "createdAt": "2026-11-14T23:23:32.420Z"
+    },
+    {
+      "id": "sch-1794698527394",
+      "userId": "usr-demo-1",
+      "userEmail": "cliente@singviagens.com.br",
+      "origin": "GRU",
+      "destination": "GIG",
+      "departureDate": "2026-12-10",
+      "returnDate": "2026-12-15",
+      "tripType": "ROUND_TRIP",
+      "adults": 2,
+      "childrenAges": [
+        8
+      ],
+      "cabinClass": "ECONOMY",
+      "lowestSingPrice": 3843,
+      "lowestAirlineDirectPrice": 4075,
+      "createdAt": "2026-11-14T23:22:07.395Z"
+    },
+    {
+      "id": "sch-1794697169571",
+      "userId": "usr-demo-1",
+      "userEmail": "cliente@singviagens.com.br",
+      "origin": "CNF",
+      "destination": "FLN",
+      "departureDate": "2026-12-10",
+      "returnDate": "2026-12-15",
+      "tripType": "ROUND_TRIP",
+      "adults": 2,
+      "childrenAges": [
+        8
+      ],
+      "cabinClass": "ECONOMY",
+      "lowestSingPrice": 3386,
+      "lowestAirlineDirectPrice": 3566,
+      "createdAt": "2026-11-14T22:59:29.571Z"
+    },
+    {
+      "id": "sch-demo-1",
+      "userId": "usr-demo-1",
+      "userEmail": "cliente@singviagens.com.br",
+      "origin": "GRU",
+      "destination": "GIG",
+      "departureDate": "2026-12-10",
+      "returnDate": "2026-12-14",
+      "tripType": "ROUND_TRIP",
+      "adults": 2,
+      "childrenAges": [
+        8
+      ],
+      "cabinClass": "ECONOMY",
+      "lowestSingPrice": 1842.5,
+      "lowestAirlineDirectPrice": 2190,
+      "createdAt": "2026-11-14T15:20:00.000Z"
+    },
+    {
+      "id": "sch-demo-2",
+      "userId": "usr-demo-1",
+      "userEmail": "cliente@singviagens.com.br",
+      "origin": "GRU",
+      "destination": "LIS",
+      "departureDate": "2027-05-15",
+      "returnDate": "2027-05-26",
+      "tripType": "ROUND_TRIP",
+      "adults": 2,
+      "childrenAges": [],
+      "cabinClass": "ECONOMY",
+      "lowestSingPrice": 8940,
+      "lowestAirlineDirectPrice": 10480,
+      "createdAt": "2026-11-14T16:45:00.000Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-demo-1",
+      "pnr": "SNG84K",
+      "userId": "usr-demo-1",
+      "userEmail": "cliente@singviagens.com.br",
+      "customerName": "Cliente VIP Sing",
+      "customerPhone": "(11) 98888-7777",
+      "flightCode": "LA3418",
+      "airline": "LATAM Airlines",
+      "origin": "GRU",
+      "destination": "GIG",
+      "departureDate": "2026-12-10",
+      "returnDate": "2026-12-14",
+      "passengersSummary": "2 Adultos, 1 Criança (8 anos)",
+      "singTotalPrice": 1842.5,
+      "airlineDirectReferencePrice": 2190,
+      "savingsAmount": 347.5,
+      "paymentMethod": "PIX",
+      "status": "CONFIRMADO",
+      "createdAt": "2026-11-14T15:35:00.000Z"
+    }
+  ]
+}

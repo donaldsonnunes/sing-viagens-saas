@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sing-obsidian: #09090B;
+  --sing-teal: #172C3B;
+  --sing-copper: #BD9472;
+  --sing-sand: #E8E2D9;
+  --sing-canvas: #FAFAFA;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #FAFAFA;
+  color: #09090B;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+}
+
+.font-mono-tech {
+  font-family: var(--font-jetbrains), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle grid pattern inspired by Linear / Vercel */
+.bg-grid-pattern-dark {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+}
+
+.bg-grid-pattern-light {
+  background-size: 36px 36px;
+  background-image: 
+    linear-gradient(to right, rgba(23, 44, 59, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(23, 44, 59, 0.035) 1px, transparent 1px);
+}
