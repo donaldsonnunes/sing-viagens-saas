@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0B151D" />
+      <stop offset="60%" stop-color="#172C3B" />
+      <stop offset="100%" stop-color="#0E1B24" />
+    </linearGradient>
+    <linearGradient id="copperGrad" x1="20" y1="108" x2="108" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A87C58" />
+      <stop offset="50%" stop-color="#BD9472" />
+      <stop offset="100%" stop-color="#E8C9A9" />
+    </linearGradient>
+    <linearGradient id="silverRibbon" x1="28" y1="96" x2="88" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E8E2D9" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo Azul-Petróleo Profundo com Borda Sutil em Cobre -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bgGrad)" stroke="#BD9472" stroke-width="3" stroke-opacity="0.45" />
+
+  <!-- Curva S em fita dupla (Cobre Suave + Areia Clara) inspirada no Logo Oficial Sing -->
+  <path
+    d="M32 94 C18 86, 22 68, 44 64 C66 60, 74 78, 56 92 C40 104, 20 96, 24 78"
+    stroke="url(#copperGrad)"
+    stroke-width="11"
+    stroke-linecap="round"
+    fill="none"
+  />
+  <path
+    d="M58 88 C74 76, 66 62, 44 56 C24 50, 26 34, 78 24"
+    stroke="url(#silverRibbon)"
+    stroke-width="9"
+    stroke-linecap="round"
+    fill="none"
+  />
+  <path
+    d="M28 48 C22 36, 42 26, 80 22"
+    stroke="url(#copperGrad)"
+    stroke-width="6.5"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- Avião Dourado/Cobre decolando no topo direito do S -->
+  <g transform="translate(76, 10) rotate(-18)">
+    <path
+      d="M2 16 L30 8 L18 18 L22 28 L14 20 L4 22 L8 17 Z"
+      fill="url(#copperGrad)"
+    />
+    <path
+      d="M8 14 L30 8 L16 17 Z"
+      fill="#FFF8F0"
+      fill-opacity="0.85"
+    />
+  </g>
+
+  <!-- Pin de Destino/Evento em Cobre Suave (Direita inferior) -->
+  <path
+    d="M94 58 C85.2 58 78 65.2 78 74 C78 85.5 94 100 94 100 C94 100 110 85.5 110 74 C110 65.2 102.8 58 94 58 Z"
+    fill="url(#copperGrad)"
+  />
+  <circle cx="94" cy="73" r="6.5" fill="#0E1B24" />
+</svg>

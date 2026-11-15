@@ -25,7 +25,15 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Sing Viagens e Turismo | O Elo entre Pessoas e Eventos",
   description:
-    "Plataforma inteligente de emissão aérea comparativa, hospedagens curadas e logística VIP para shows, festivais e viagens.",
+    "Passagens aéreas para shows, festivais e destinos nacionais e internacionais com comparativo em tempo real nas companhias aéreas.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    shortcut: "/icon.svg",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

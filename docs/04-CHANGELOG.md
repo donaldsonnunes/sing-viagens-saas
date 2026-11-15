@@ -4,6 +4,13 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.4.2] — 2026-11-14
+### Adicionado (Ícone Oficial da Página / Favicon Baseado no Logo Sing)
+- **Favicon e Símbolo Vetorial Fiel ao Logo (`src/app/icon.svg`, `public/icon.svg`, `src/app/layout.tsx`, `src/components/Navbar.tsx`)**:
+  - Criado o ícone oficial da página (`icon.svg` e configuração `metadata.icons` no `layout.tsx`) reproduzindo fielmente o símbolo da marca Sing enviado (`logo.png`): fundo azul-petróleo escuro (`#172C3B` / `#0E1B24`), a fita dupla do **"S"** em cobre suave (`#BD9472`) e areia clara (`#E8E2D9`) subindo até o **avião dourado** no topo direito, acompanhado do **pin de localização** em cobre.
+
+---
+
 ## [2.4.1] — 2026-11-14
 ### Adicionado (Visualização Clara de Conexões: Local, Horários e Tempo de Espera)
 - **Detalhamento Visual de Conexões nos Resultados de Busca (`src/lib/flightEngine.ts` e `src/components/FlightSearchExperience.tsx`)**:

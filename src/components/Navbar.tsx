@@ -12,61 +12,103 @@ import {
   Plane,
 } from "lucide-react";
 
-export function SingCompactSymbol({ className = "w-9 h-9" }: { className?: string }) {
+export function SingCompactSymbol({ className = "w-10 h-10" }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 128 128"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-label="Sing Viagens e Turismo"
     >
-      <rect width="48" height="48" rx="12" fill="#09090B" />
-      <rect
-        x="0.75"
-        y="0.75"
-        width="46.5"
-        height="46.5"
-        rx="11.25"
-        stroke="url(#borderGlow)"
-        strokeOpacity="0.6"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M14 34C10 31 11 25 18 23L27 20C33 18 34 13 30 10"
-        stroke="url(#copperGradNav)"
-        strokeWidth="3.2"
-        strokeLinecap="round"
-      />
-      <path d="M36 8L27 11L30 13.5L33 18L36 8Z" fill="#BD9472" />
-      <circle cx="19" cy="33" r="3.8" fill="#BD9472" />
-      <circle cx="19" cy="33" r="1.5" fill="#09090B" />
       <defs>
         <linearGradient
-          id="copperGradNav"
-          x1="10"
-          y1="35"
-          x2="36"
-          y2="8"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#BD9472" />
-          <stop offset="0.5" stopColor="#E8E2D9" />
-          <stop offset="1" stopColor="#BD9472" />
-        </linearGradient>
-        <linearGradient
-          id="borderGlow"
+          id="bgGradNav"
           x1="0"
           y1="0"
-          x2="48"
-          y2="48"
+          x2="128"
+          y2="128"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="#BD9472" />
-          <stop offset="0.5" stopColor="#172C3B" />
-          <stop offset="1" stopColor="#BD9472" />
+          <stop offset="0%" stopColor="#0B151D" />
+          <stop offset="60%" stopColor="#172C3B" />
+          <stop offset="100%" stopColor="#0E1B24" />
+        </linearGradient>
+        <linearGradient
+          id="copperGradNav"
+          x1="20"
+          y1="108"
+          x2="108"
+          y2="20"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0%" stopColor="#A87C58" />
+          <stop offset="50%" stopColor="#BD9472" />
+          <stop offset="100%" stopColor="#E8C9A9" />
+        </linearGradient>
+        <linearGradient
+          id="silverRibbonNav"
+          x1="28"
+          y1="96"
+          x2="88"
+          y2="34"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0%" stopColor="#E8E2D9" />
+          <stop offset="100%" stopColor="#FFFFFF" />
         </linearGradient>
       </defs>
+
+      <rect
+        x="4"
+        y="4"
+        width="120"
+        height="120"
+        rx="28"
+        fill="url(#bgGradNav)"
+        stroke="#BD9472"
+        strokeWidth="3.5"
+        strokeOpacity="0.55"
+      />
+
+      {/* Curva S em fita dupla (Cobre Suave + Areia Clara) fiel ao Logo Sing */}
+      <path
+        d="M32 94 C18 86, 22 68, 44 64 C66 60, 74 78, 56 92 C40 104, 20 96, 24 78"
+        stroke="url(#copperGradNav)"
+        strokeWidth="11"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M58 88 C74 76, 66 62, 44 56 C24 50, 26 34, 78 24"
+        stroke="url(#silverRibbonNav)"
+        strokeWidth="9"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M28 48 C22 36, 42 26, 80 22"
+        stroke="url(#copperGradNav)"
+        strokeWidth="6.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Avião Dourado/Cobre no topo direito do S */}
+      <g transform="translate(76, 10) rotate(-18)">
+        <path
+          d="M2 16 L30 8 L18 18 L22 28 L14 20 L4 22 L8 17 Z"
+          fill="url(#copperGradNav)"
+        />
+        <path d="M8 14 L30 8 L16 17 Z" fill="#FFF8F0" fillOpacity="0.85" />
+      </g>
+
+      {/* Pin de Destino/Show em Cobre Suave */}
+      <path
+        d="M94 58 C85.2 58 78 65.2 78 74 C78 85.5 94 100 94 100 C94 100 110 85.5 110 74 C110 65.2 102.8 58 94 58 Z"
+        fill="url(#copperGradNav)"
+      />
+      <circle cx="94" cy="73" r="6.5" fill="#0E1B24" />
     </svg>
   );
 }
