@@ -104,21 +104,41 @@ export async function POST(request: Request) {
           { status: 401 }
         );
       }
+
+      if (user.emailVerified === false && !isSuperAdminEmail(user.email)) {
+        return NextResponse.json(
+          {
+            requiresEmailConfirmation: true,
+            email: user.email,
+            verificationCodeHint: user.verificationCode || "",
+            error:
+              "Seu e-mail ainda não foi confirmado. Verifique o link enviado para o seu e-mail ou digite abaixo o código de confirmação de 6 dígitos.",
+          },
+          { status: 403 }
+        );
+      }
+
       const role = isSuperAdminEmail(user.email) ? "ADMIN" : user.role;
       return NextResponse.json({
         user: {
           id: user.id,
           name: user.name,
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          birthDate: user.birthDate || "",
+          cpf: user.cpf || "",
+          passport: user.passport || "",
           email: user.email,
           phone: user.phone,
           role,
+          emailVerified: true,
           authProvider: user.authProvider || "EMAIL",
           avatarUrl: user.avatarUrl,
         },
       });
     }
 
-    // 2. Cadastro de Nova Conta por E-mail e Senha (Já replicando para Passageiro Frequente)
+    // 2. Cadastro de Nova Conta por E-mail e Senha (com Confirmação de E-mail + Replicação para Passageiro Frequente)
     if (body.action === "REGISTER") {
       const normalizedEmail = (body.email || "").trim().toLowerCase();
       if (!normalizedEmail) {
@@ -165,6 +185,7 @@ export async function POST(request: Request) {
           existing.passwordHash = body.password || existing.passwordHash;
           existing.phone = phone || existing.phone;
           existing.role = "ADMIN";
+          existing.emailVerified = true;
           await insertUserToSupabase(existing);
           await upsertFrequentPassengerToSupabase({
             id: "PAX-DON-1",
@@ -191,8 +212,19 @@ export async function POST(request: Request) {
               email: existing.email,
               phone: existing.phone,
               role: "ADMIN",
+              emailVerified: true,
               authProvider: existing.authProvider || "EMAIL",
             },
+          });
+        }
+
+        if (existing.emailVerified === false) {
+          return NextResponse.json({
+            requiresEmailConfirmation: true,
+            email: existing.email,
+            verificationCodeHint: existing.verificationCode || "",
+            message:
+              "Este e-mail já iniciou o cadastro e aguarda confirmação. Verifique seu e-mail ou digite o código de 6 dígitos.",
           });
         }
 
@@ -200,6 +232,47 @@ export async function POST(request: Request) {
           { error: "Este e-mail já está cadastrado. Use a aba Entrar (Login)." },
           { status: 400 }
         );
+      }
+
+      const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+      const originUrl =
+        request.headers.get("origin") || "https://www.singviagens.com.br";
+      const redirectConfirmUrl = `${originUrl}/conta?confirm_email=${encodeURIComponent(
+        normalizedEmail
+      )}&code=${verificationCode}`;
+
+      // Dispara o e-mail real de confirmação via Supabase Auth (/auth/v1/signup)
+      let emailDispatched = false;
+      try {
+        const supaSignupRes = await fetch(
+          `${SUPABASE_URL}/auth/v1/signup?redirect_to=${encodeURIComponent(
+            redirectConfirmUrl
+          )}`,
+          {
+            method: "POST",
+            headers: {
+              apikey: SUPABASE_KEY,
+              Authorization: `Bearer ${SUPABASE_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: normalizedEmail,
+              password:
+                String(body.password || "").length >= 6
+                  ? body.password
+                  : `${body.password || "123456"}_sing`,
+              data: {
+                full_name: fullName,
+                first_name: firstName,
+                last_name: lastName,
+                verification_code: verificationCode,
+              },
+            }),
+          }
+        );
+        emailDispatched = supaSignupRes.ok;
+      } catch (e) {
+        console.warn("Aviso no disparo Supabase Auth signup email:", e);
       }
 
       const newUser = {
@@ -215,6 +288,8 @@ export async function POST(request: Request) {
         phone: phone || "",
         role: role as "CUSTOMER" | "ADMIN",
         authProvider: "EMAIL" as const,
+        emailVerified: false,
+        verificationCode,
         createdAt: new Date().toISOString(),
       };
       db.users.push(newUser);
@@ -236,19 +311,119 @@ export async function POST(request: Request) {
 
       writeDb(db);
       return NextResponse.json({
+        requiresEmailConfirmation: true,
+        email: normalizedEmail,
+        emailDispatched,
+        verificationCodeHint: verificationCode,
+        message: `Enviamos um e-mail de confirmação para ${normalizedEmail}. Clique no link enviado ao seu e-mail ou informe o código de confirmação de 6 dígitos para validar e ativar sua conta.`,
+      });
+    }
+
+    // 2B. Validação / Confirmação de E-mail (por Código de 6 dígitos ou Link de Confirmação)
+    if (body.action === "VERIFY_EMAIL") {
+      const normalizedEmail = (body.email || "").trim().toLowerCase();
+      const inputCode = String(body.code || "").trim();
+
+      const targetUser = db.users.find(
+        (u) => u.email.toLowerCase() === normalizedEmail
+      );
+      if (!targetUser) {
+        return NextResponse.json(
+          { error: "Conta não encontrada para este e-mail." },
+          { status: 404 }
+        );
+      }
+
+      if (
+        !inputCode ||
+        (targetUser.verificationCode && inputCode !== targetUser.verificationCode)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Código de confirmação inválido. Verifique o código enviado ao seu e-mail e tente novamente.",
+          },
+          { status: 400 }
+        );
+      }
+
+      targetUser.emailVerified = true;
+      targetUser.verifiedAt = new Date().toISOString();
+      await insertUserToSupabase(targetUser);
+      writeDb(db);
+
+      const role = isSuperAdminEmail(targetUser.email)
+        ? "ADMIN"
+        : targetUser.role;
+
+      return NextResponse.json({
+        verified: true,
         user: {
-          id: newUser.id,
-          name: newUser.name,
-          firstName: newUser.firstName,
-          lastName: newUser.lastName,
-          birthDate: newUser.birthDate,
-          cpf: newUser.cpf,
-          passport: newUser.passport,
-          email: newUser.email,
-          phone: newUser.phone,
-          role: newUser.role,
-          authProvider: newUser.authProvider,
+          id: targetUser.id,
+          name: targetUser.name,
+          firstName: targetUser.firstName || "",
+          lastName: targetUser.lastName || "",
+          birthDate: targetUser.birthDate || "",
+          cpf: targetUser.cpf || "",
+          passport: targetUser.passport || "",
+          email: targetUser.email,
+          phone: targetUser.phone,
+          role,
+          emailVerified: true,
+          authProvider: targetUser.authProvider || "EMAIL",
         },
+      });
+    }
+
+    // 2C. Reenvio do E-mail de Confirmação
+    if (body.action === "RESEND_VERIFICATION_EMAIL") {
+      const normalizedEmail = (body.email || "").trim().toLowerCase();
+      const targetUser = db.users.find(
+        (u) => u.email.toLowerCase() === normalizedEmail
+      );
+      if (!targetUser) {
+        return NextResponse.json(
+          { error: "E-mail não localizado." },
+          { status: 404 }
+        );
+      }
+
+      const newCode =
+        targetUser.verificationCode ||
+        String(Math.floor(100000 + Math.random() * 900000));
+      targetUser.verificationCode = newCode;
+      await insertUserToSupabase(targetUser);
+
+      const originUrl =
+        request.headers.get("origin") || "https://www.singviagens.com.br";
+      const redirectConfirmUrl = `${originUrl}/conta?confirm_email=${encodeURIComponent(
+        normalizedEmail
+      )}&code=${newCode}`;
+
+      try {
+        await fetch(`${SUPABASE_URL}/auth/v1/resend`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "signup",
+            email: normalizedEmail,
+            options: {
+              emailRedirectTo: redirectConfirmUrl,
+            },
+          }),
+        });
+      } catch {
+        // ignore
+      }
+
+      return NextResponse.json({
+        success: true,
+        verificationCodeHint: newCode,
+        message: `Reenviamos a solicitação de confirmação para ${normalizedEmail}.`,
       });
     }
 
@@ -400,17 +575,33 @@ export async function POST(request: Request) {
         supaUser.user_metadata?.name ||
         (isSuperAdminEmail(email) ? "Donaldson Nunes" : email.split("@")[0]);
 
-      const syncedUser = {
-        id: supaUser.id || `usr-${Date.now()}`,
-        name,
-        email,
-        passwordHash: "oauth_managed",
-        phone: supaUser.phone || "",
-        role,
-        authProvider: provider,
-        avatarUrl: supaUser.user_metadata?.avatar_url,
-        createdAt: supaUser.created_at || new Date().toISOString(),
-      };
+      const existingInDb = db.users.find(
+        (u) => u.email.toLowerCase() === email
+      );
+
+      const syncedUser = existingInDb
+        ? {
+            ...existingInDb,
+            name: existingInDb.name || name,
+            role,
+            emailVerified: true,
+            verifiedAt: new Date().toISOString(),
+            avatarUrl:
+              supaUser.user_metadata?.avatar_url || existingInDb.avatarUrl,
+          }
+        : {
+            id: supaUser.id || `usr-${Date.now()}`,
+            name,
+            email,
+            passwordHash: "oauth_managed",
+            phone: supaUser.phone || "",
+            role,
+            authProvider: provider,
+            emailVerified: true,
+            verifiedAt: new Date().toISOString(),
+            avatarUrl: supaUser.user_metadata?.avatar_url,
+            createdAt: supaUser.created_at || new Date().toISOString(),
+          };
 
       await insertUserToSupabase(syncedUser);
 
@@ -418,9 +609,15 @@ export async function POST(request: Request) {
         user: {
           id: syncedUser.id,
           name: syncedUser.name,
+          firstName: syncedUser.firstName || "",
+          lastName: syncedUser.lastName || "",
+          birthDate: syncedUser.birthDate || "",
+          cpf: syncedUser.cpf || "",
+          passport: syncedUser.passport || "",
           email: syncedUser.email,
           phone: syncedUser.phone,
           role: syncedUser.role,
+          emailVerified: true,
           authProvider: syncedUser.authProvider,
           avatarUrl: syncedUser.avatarUrl,
         },

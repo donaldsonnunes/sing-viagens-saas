@@ -132,6 +132,9 @@ export interface UserAccount {
   role: "CUSTOMER" | "ADMIN";
   authProvider?: "EMAIL" | "GOOGLE" | "APPLE";
   avatarUrl?: string;
+  emailVerified?: boolean;
+  verificationCode?: string;
+  verifiedAt?: string;
   createdAt: string;
 }
 
@@ -380,6 +383,12 @@ export async function fetchDatabaseFromSupabase(): Promise<DatabaseSchema> {
               u.role === "ADMIN" || isSuperAdminEmail(u.email) ? "ADMIN" : "CUSTOMER",
             authProvider: u.auth_provider || "EMAIL",
             avatarUrl: u.avatar_url || undefined,
+            emailVerified:
+              typeof u.email_verified === "boolean"
+                ? u.email_verified
+                : isSuperAdminEmail(u.email) || u.auth_provider !== "EMAIL",
+            verificationCode: u.verification_code || "",
+            verifiedAt: u.verified_at || undefined,
             createdAt: u.created_at,
           }))
         : fallback.users;
@@ -522,6 +531,12 @@ export async function insertUserToSupabase(user: UserAccount): Promise<void> {
         role: isSuperAdminEmail(user.email) ? "ADMIN" : user.role,
         auth_provider: user.authProvider || "EMAIL",
         avatar_url: user.avatarUrl || null,
+        email_verified:
+          typeof user.emailVerified === "boolean"
+            ? user.emailVerified
+            : isSuperAdminEmail(user.email) || user.authProvider !== "EMAIL",
+        verification_code: user.verificationCode || "",
+        verified_at: user.verifiedAt || null,
         created_at: user.createdAt,
       }),
     });

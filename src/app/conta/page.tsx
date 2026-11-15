@@ -79,6 +79,15 @@ export default function ContaPage() {
   const [authError, setAuthError] = useState("");
   const [loadingAuth, setLoadingAuth] = useState(false);
 
+  // Estado de Validação / Confirmação de E-mail no Cadastro
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<
+    string | null
+  >(null);
+  const [verificationCodeInput, setVerificationCodeInput] = useState("");
+  const [verificationCodeHint, setVerificationCodeHint] = useState("");
+  const [verificationNotice, setVerificationNotice] = useState("");
+  const [resendingEmail, setResendingEmail] = useState(false);
+
   // Modal de Login Social (Google / Apple ID)
   const [socialModalProvider, setSocialModalProvider] = useState<
     "GOOGLE" | "APPLE" | null
@@ -207,7 +216,37 @@ export default function ContaPage() {
   };
 
   useEffect(() => {
-    // 1. Verifica se retornou de um fluxo OAuth do Supabase (#access_token=...)
+    // 1A. Verifica se clicou no Link de Confirmação enviado por E-mail (?confirm_email=...&code=...)
+    if (
+      typeof window !== "undefined" &&
+      window.location.search.includes("confirm_email=")
+    ) {
+      const sp = new URLSearchParams(window.location.search);
+      const confirmEmail = sp.get("confirm_email");
+      const confirmCode = sp.get("code");
+      if (confirmEmail && confirmCode) {
+        fetch("/api/account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "VERIFY_EMAIL",
+            email: confirmEmail,
+            code: confirmCode,
+          }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.verified && data.user) {
+              setPendingVerificationEmail(null);
+              saveSessionAndNotify(data.user);
+              window.history.replaceState(null, "", window.location.pathname);
+            }
+          });
+        return;
+      }
+    }
+
+    // 1B. Verifica se retornou de um fluxo OAuth / Link de Confirmação do Supabase (#access_token=...)
     if (typeof window !== "undefined" && window.location.hash.includes("access_token=")) {
       const params = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = params.get("access_token");
@@ -256,6 +295,7 @@ export default function ContaPage() {
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
+    setVerificationNotice("");
     setLoadingAuth(true);
     try {
       const res = await fetch("/api/account", {
@@ -275,6 +315,20 @@ export default function ContaPage() {
         }),
       });
       const data = await res.json();
+
+      if (data.requiresEmailConfirmation) {
+        setPendingVerificationEmail(data.email || email);
+        setVerificationCodeHint(data.verificationCodeHint || "");
+        setVerificationNotice(
+          data.message ||
+            data.error ||
+            `Enviamos um link/código de confirmação para ${
+              data.email || email
+            }. Confirme seu e-mail para ativar sua conta.`
+        );
+        return;
+      }
+
       if (!res.ok || data.error) {
         setAuthError(data.error || "Falha na autenticação.");
         return;
@@ -282,6 +336,62 @@ export default function ContaPage() {
       saveSessionAndNotify(data.user);
     } finally {
       setLoadingAuth(false);
+    }
+  };
+
+  const handleVerifyEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingVerificationEmail) return;
+    setAuthError("");
+    setLoadingAuth(true);
+    try {
+      const res = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "VERIFY_EMAIL",
+          email: pendingVerificationEmail,
+          code: verificationCodeInput,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setAuthError(data.error || "Código de confirmação inválido.");
+        return;
+      }
+      if (data.verified && data.user) {
+        setPendingVerificationEmail(null);
+        setVerificationCodeInput("");
+        setVerificationNotice("");
+        saveSessionAndNotify(data.user);
+      }
+    } finally {
+      setLoadingAuth(false);
+    }
+  };
+
+  const handleResendVerificationEmail = async () => {
+    if (!pendingVerificationEmail) return;
+    setResendingEmail(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "RESEND_VERIFICATION_EMAIL",
+          email: pendingVerificationEmail,
+        }),
+      });
+      const data = await res.json();
+      if (data.verificationCodeHint) {
+        setVerificationCodeHint(data.verificationCodeHint);
+      }
+      if (data.message) {
+        setVerificationNotice(data.message);
+      }
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -479,6 +589,104 @@ export default function ContaPage() {
               >
                 Buscar Passagens Aéreas
               </Link>
+            </div>
+          ) : pendingVerificationEmail ? (
+            <div className="rounded-2xl bg-white border-2 border-[#BD9472] p-6 shadow-lg space-y-5 animate-fade-up">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-[#172C3B] text-[#BD9472] flex items-center justify-center shrink-0">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[#BD9472] font-bold">
+                    Validação de Segurança
+                  </span>
+                  <h3 className="text-base font-extrabold text-[#172C3B]">
+                    Confirme seu E-mail para Ativar a Conta
+                  </h3>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-gray-200 text-xs text-gray-700 leading-relaxed space-y-2">
+                <p>
+                  {verificationNotice ||
+                    `Enviamos um link e código de confirmação para ${pendingVerificationEmail}.`}
+                </p>
+                <p className="text-[11px] text-gray-500">
+                  Verifique sua caixa de entrada (e a pasta Spam) e clique no link de confirmação enviado pelo Supabase ou informe o código de 6 dígitos abaixo.
+                </p>
+                {verificationCodeHint && (
+                  <div className="pt-2 border-t border-gray-200 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-[#172C3B]">
+                      Código gerado para{" "}
+                      <span className="font-mono">{pendingVerificationEmail}</span>:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setVerificationCodeInput(verificationCodeHint)}
+                      className="px-2.5 py-1 rounded-lg bg-[#172C3B] text-[#BD9472] font-mono font-bold text-xs hover:opacity-90"
+                      title="Preencher código de confirmação"
+                    >
+                      {verificationCodeHint} (Usar código)
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={handleVerifyEmailSubmit} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-[#172C3B] mb-1">
+                    Código de Confirmação (6 dígitos)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={verificationCodeInput}
+                    onChange={(e) => setVerificationCodeInput(e.target.value)}
+                    placeholder="000000"
+                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-center font-mono text-base font-extrabold tracking-widest text-[#09090B]"
+                  />
+                </div>
+
+                {authError && (
+                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                    {authError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loadingAuth}
+                  className="w-full py-3 rounded-xl bg-[#172C3B] text-[#E8E2D9] font-extrabold text-xs sm:text-sm hover:bg-[#BD9472] hover:text-[#0E1B24] transition shadow-sm"
+                >
+                  {loadingAuth
+                    ? "Validando E-mail..."
+                    : "Confirmar E-mail e Acessar Minha Conta"}
+                </button>
+              </form>
+
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+                <button
+                  type="button"
+                  disabled={resendingEmail}
+                  onClick={handleResendVerificationEmail}
+                  className="font-bold text-[#172C3B] hover:text-[#BD9472] transition"
+                >
+                  {resendingEmail
+                    ? "Reenviando e-mail..."
+                    : "Reenviar E-mail de Confirmação"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingVerificationEmail(null);
+                    setAuthError("");
+                  }}
+                  className="text-gray-500 hover:text-gray-800 font-semibold"
+                >
+                  Voltar ao Login
+                </button>
+              </div>
             </div>
           ) : (
             <div className="rounded-2xl bg-white border border-gray-200 p-6 shadow-md space-y-5">

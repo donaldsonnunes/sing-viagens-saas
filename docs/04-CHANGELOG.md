@@ -4,6 +4,15 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.9.3] — 2026-11-15
+### Adicionado (Validação e Confirmação Obrigatória de E-mail no Cadastro de Usuário)
+- **Fluxo de Confirmação de E-mail na Criação de Conta (`src/app/conta/page.tsx`, `src/app/api/account/route.ts`, `src/lib/db.ts`, `supabase/migrations/20261115060500_add_email_verification_to_users.sql`)**:
+  - Adicionadas as colunas `email_verified`, `verification_code` e `verified_at` em `public.users`.
+  - Ao se cadastrar por e-mail/senha, o sistema dispara o e-mail de confirmação via Supabase Auth (`/auth/v1/signup`), gera um código de 6 dígitos e direciona o usuário para a etapa **"Confirme seu E-mail para Ativar a Conta"** (permitindo confirmar pelo link recebido no e-mail ou digitando o código de 6 dígitos, além de botão para reenviar o e-mail).
+  - Tentativas de login em contas ainda não confirmadas são bloqueadas e direcionadas para a tela de confirmação de e-mail.
+
+---
+
 ## [2.9.2] — 2026-11-15
 ### Corrigido (Isolamento de Dados e Ocultação de Dashboards, Passageiros e Históricos antes do Login e após Logout)
 - **Proteção de Dados Vinculados à Conta em `/conta`, `/login`, `/checkout` e `/admin` (`src/app/conta/page.tsx`, `src/app/api/account/route.ts`, `src/app/checkout/page.tsx`, `src/app/admin/page.tsx`)**:
