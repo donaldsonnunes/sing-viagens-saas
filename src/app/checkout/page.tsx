@@ -42,6 +42,7 @@ export default function CheckoutPage() {
   );
   const [selectedData, setSelectedData] = useState<any>(null);
   const [loggedUser, setLoggedUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -254,6 +255,7 @@ export default function CheckoutPage() {
       }
 
       setPassengersDetails(computedRows);
+      setAuthChecked(true);
 
       if (defaultEmail) {
         loadFrequentPassengersForEmail(defaultEmail, computedRows);
@@ -565,7 +567,25 @@ export default function CheckoutPage() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {mode === "CHECKOUT_FLIGHT" ? (
-          confirmedOrder ? (
+          authChecked && !loggedUser ? (
+            <div className="max-w-xl mx-auto rounded-2xl bg-white border border-gray-200 p-8 shadow-sm text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#172C3B] text-[#BD9472] flex items-center justify-center mx-auto">
+                <UserCheck className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-extrabold text-[#172C3B]">
+                Entre ou Crie sua Conta para Continuar
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                Sua pesquisa e os voos selecionados já estão salvos. Para cadastrar ou selecionar seus passageiros e emitir o bilhete com segurança, acesse sua conta Sing.
+              </p>
+              <Link
+                href="/conta?redirect=/checkout&mode=register"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#172C3B] text-[#E8E2D9] font-extrabold text-xs sm:text-sm hover:bg-[#BD9472] hover:text-[#0E1B24] transition shadow-md"
+              >
+                <span>Entrar ou Criar Conta Agora</span>
+              </Link>
+            </div>
+          ) : confirmedOrder ? (
             <div className="rounded-2xl bg-white border border-emerald-300 p-8 text-center space-y-5 shadow-lg">
               <CheckCircle2 className="w-14 h-14 text-emerald-600 mx-auto" />
               <h2 className="text-2xl sm:text-3xl font-extrabold text-[#172C3B]">

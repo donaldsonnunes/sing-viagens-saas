@@ -171,8 +171,90 @@ export function FlightSearchExperience({
   useEffect(() => {
     if (initialOrigin && initialDestination && departureDate) {
       executeFlightSearch(false);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      try {
+        const savedSearch = sessionStorage.getItem("sing_active_search");
+        if (savedSearch) {
+          const parsed = JSON.parse(savedSearch);
+          if (Array.isArray(parsed.offers) && parsed.offers.length > 0) {
+            if (parsed.tripType) setTripType(parsed.tripType);
+            if (parsed.originIata) setOriginIata(parsed.originIata);
+            if (parsed.destinationIata) setDestinationIata(parsed.destinationIata);
+            if (parsed.departureDate) setDepartureDate(parsed.departureDate);
+            if (parsed.returnDate) setReturnDate(parsed.returnDate);
+            if (parsed.adults) setAdults(parsed.adults);
+            if (Array.isArray(parsed.childrenAges)) setChildrenAges(parsed.childrenAges);
+            if (parsed.cabinClass) setCabinClass(parsed.cabinClass);
+            setOffers(parsed.offers);
+            if (parsed.telemetry) setTelemetry(parsed.telemetry);
+            if (Array.isArray(parsed.preSearchCalendar)) {
+              setPreSearchCalendar(parsed.preSearchCalendar);
+            }
+            if (parsed.selectedOutboundOffer) {
+              setSelectedOutboundOffer(parsed.selectedOutboundOffer);
+            }
+            if (parsed.selectedReturnOffer) {
+              setSelectedReturnOffer(parsed.selectedReturnOffer);
+            }
+            if (typeof parsed.extraCheckedBags === "number") {
+              setExtraCheckedBags(parsed.extraCheckedBags);
+            }
+            if (typeof parsed.specialBags === "number") {
+              setSpecialBags(parsed.specialBags);
+            }
+          }
+        }
+      } catch {
+        // ignore invalid session cache
+      }
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || offers.length === 0) return;
+    try {
+      sessionStorage.setItem(
+        "sing_active_search",
+        JSON.stringify({
+          tripType,
+          originIata,
+          destinationIata,
+          departureDate,
+          returnDate,
+          adults,
+          childrenAges,
+          cabinClass,
+          offers,
+          telemetry,
+          preSearchCalendar,
+          selectedOutboundOffer,
+          selectedReturnOffer,
+          extraCheckedBags,
+          specialBags,
+        })
+      );
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [
+    tripType,
+    originIata,
+    destinationIata,
+    departureDate,
+    returnDate,
+    adults,
+    childrenAges,
+    cabinClass,
+    offers,
+    telemetry,
+    preSearchCalendar,
+    selectedOutboundOffer,
+    selectedReturnOffer,
+    extraCheckedBags,
+    specialBags,
+  ]);
 
   const handleSwapAirports = () => {
     const temp = originIata;
@@ -308,6 +390,20 @@ export function FlightSearchExperience({
     };
     if (typeof window !== "undefined") {
       localStorage.setItem("sing_selected_checkout", JSON.stringify(checkoutPayload));
+      const savedUser = localStorage.getItem("sing_user");
+      let hasLoggedUser = false;
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          hasLoggedUser = Boolean(parsedUser?.email);
+        } catch {
+          hasLoggedUser = false;
+        }
+      }
+      if (!hasLoggedUser) {
+        router.push("/conta?redirect=/checkout&mode=register");
+        return;
+      }
     }
     router.push("/checkout");
   };

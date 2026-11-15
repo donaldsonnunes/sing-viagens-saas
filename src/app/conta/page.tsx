@@ -125,14 +125,24 @@ export default function ContaPage() {
   const [savingPax, setSavingPax] = useState(false);
   const [paxSuccessMsg, setPaxSuccessMsg] = useState("");
   const [paxErrorMsg, setPaxErrorMsg] = useState("");
+  const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
 
-  const saveSessionAndNotify = (loggedUser: any) => {
+  const saveSessionAndNotify = (loggedUser: any, explicitRedirect?: string | null) => {
     localStorage.setItem("sing_user", JSON.stringify(loggedUser));
     setUser(loggedUser);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("sing-auth-change"));
     }
     loadAccountData(loggedUser.email);
+    const nextPath =
+      explicitRedirect ??
+      redirectTarget ??
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("redirect")
+        : null);
+    if (nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")) {
+      router.push(nextPath);
+    }
   };
 
   const loadAccountData = async (targetEmail: string) => {
@@ -247,6 +257,18 @@ export default function ContaPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const spInit = new URLSearchParams(window.location.search);
+      const redir = spInit.get("redirect");
+      const modeParam = spInit.get("mode");
+      if (redir && redir.startsWith("/") && !redir.startsWith("//")) {
+        setRedirectTarget(redir);
+      }
+      if (modeParam === "register") {
+        setAuthMode("REGISTER");
+      }
+    }
+
     // 1A. Verifica se clicou no Link de Confirmação enviado por E-mail (?confirm_email=...&code=...)
     if (
       typeof window !== "undefined" &&
@@ -760,6 +782,17 @@ export default function ContaPage() {
             </div>
           ) : (
             <div className="rounded-2xl bg-white border border-gray-200 p-6 shadow-md space-y-5">
+              {redirectTarget === "/checkout" && (
+                <div className="p-3.5 rounded-xl bg-[#172C3B] text-[#E8E2D9] border border-[#BD9472]/50 text-xs space-y-1">
+                  <div className="font-extrabold text-[#BD9472]">
+                    Sua seleção de voos está salva!
+                  </div>
+                  <p>
+                    Entre na sua conta ou crie seu cadastro abaixo para continuar para os dados dos passageiros sem perder sua pesquisa.
+                  </p>
+                </div>
+              )}
+
               {/* Botões de Login Social: Google e Apple ID */}
               <div className="space-y-2.5">
                 <div className="text-xs font-bold text-[#172C3B] uppercase tracking-wider">
