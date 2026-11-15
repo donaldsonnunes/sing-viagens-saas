@@ -4,6 +4,15 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.10.1] — 2026-11-15
+### Corrigido (Validação de Provedores e `isLiveData` no Cache de Interseção da APIVIAGENS)
+- **Cobertura de Provedores em `isEntryValidForRequest` (`src/lib/apiViagensService.ts`)**:
+  - Ao alternar entre modos de consumo (`1 Créd. (Tarifado)`, `Smart (Top 3)` ou `Completo`), o cache ativo e a interseção de trecho (`outboundLegKey` / `flight_leg_inventory`) agora verificam se `entry.providers` cobre todos os `routeSelection.queriedProviders` solicitados pela estratégia atual, evitando que uma busca anterior somente `tarifado` impeça a consulta aos demais provedores (`latam`, `smiles`, `azul`).
+- **Flag `isLiveData` na leitura do Supabase (`fetchFlightIntersectionFromSupabase`)**:
+  - Passou a propagar `isLiveData: bestLeg.source_type === "APIVIAGENS_LIVE"` e agregar todos os `providers` do mesmo `source_type`, impedindo que registros simulados (`SING_HYBRID_ENGINE`) sejam reutilizados quando o usuário marca **API Real (APIVIAGENS)**.
+
+---
+
 ## [2.10.0] — 2026-11-15
 ### Adicionado (Fluxo Ida e Volta em 2 Etapas, Ícones de Bagagem e Inclusão de Bagagens Extras/Especiais)
 - **Seleção Ida e Volta com Resumo Lateral Direito (`src/components/FlightSearchExperience.tsx`, `src/app/checkout/page.tsx`)**:

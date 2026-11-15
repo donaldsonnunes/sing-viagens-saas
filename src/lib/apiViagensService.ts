@@ -794,10 +794,19 @@ export async function searchFlightsWithApiViagensOptimization(params: {
   const existingLegIntersection = legInventoryIndex.get(outboundLegKey);
 
   // 3. Verifica Cache Ativo ou Interseção Atômica de Trecho (Memória + Fallback Persistente no Supabase)
-  // Se shouldCallLiveApi === true, não aceita cache puramente simulado (isLiveData === false)
+  // Se shouldCallLiveApi === true, não aceita cache puramente simulado (isLiveData === false).
+  // Também exige que o cache cubra todos os provedores solicitados pela estratégia atual
+  // (ex.: alternar de "1 Créd. (Tarifado)" para "Smart" ou "Completo" deve consultar os novos provedores).
   const isEntryValidForRequest = (entry?: CacheEntry<any> | null) => {
     if (!entry || entry.expiresAtMs <= nowMs) return false;
     if (shouldCallLiveApi && entry.isLiveData === false) return false;
+    if (
+      !routeSelection.queriedProviders.every((p) =>
+        entry.providers.includes(p)
+      )
+    ) {
+      return false;
+    }
     return true;
   };
 
@@ -839,7 +848,10 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       strategyApplied: strategy,
       roundTripConsolidated: params.searchParams.tripType === "ROUND_TRIP",
       routeClassification: routeSelection.routeType,
-      queriedProviders: routeSelection.queriedProviders,
+      queriedProviders:
+        hitEntry.providers.length > 0
+          ? hitEntry.providers
+          : routeSelection.queriedProviders,
       skippedProviders: routeSelection.skippedProviders,
       creditsConsumedThisCall: 0,
       creditsSavedThisCall: savedCreditsOnHit,
@@ -1287,14 +1299,28 @@ async function fetchFlightIntersectionFromSupabase(
     if (outboundLegs.length === 0) return null;
 
     // Prioriza trechos vindos da APIVIAGENS_LIVE ou mais recentes
-    const bestLeg =
-      outboundLegs.find((l) => l.source_type === "APIVIAGENS_LIVE") ||
-      outboundLegs[0];
+    const targetSourceType = outboundLegs.some(
+      (l) => l.source_type === "APIVIAGENS_LIVE"
+    )
+      ? "APIVIAGENS_LIVE"
+      : outboundLegs[0]?.source_type;
+    const matchingLegs = outboundLegs.filter(
+      (l) => l.source_type === targetSourceType
+    );
+    const bestLeg = matchingLegs[0] || outboundLegs[0];
     const offers: FlightOfferResult[] = Array.isArray(bestLeg?.offers_payload)
       ? bestLeg.offers_payload
       : [];
 
     if (offers.length === 0) return null;
+
+    const aggregatedProviders = Array.from(
+      new Set(
+        matchingLegs
+          .map((l) => l.provider as ApiViagensProvider)
+          .filter(Boolean)
+      )
+    );
 
     const createdAtMs = bestLeg.fetched_at
       ? new Date(bestLeg.fetched_at).getTime()
@@ -1308,7 +1334,8 @@ async function fetchFlightIntersectionFromSupabase(
       data: offers,
       createdAtMs,
       expiresAtMs,
-      providers: [bestLeg.provider as ApiViagensProvider].filter(Boolean),
+      providers: aggregatedProviders,
+      isLiveData: bestLeg.source_type === "APIVIAGENS_LIVE",
     };
   } catch {
     return null;

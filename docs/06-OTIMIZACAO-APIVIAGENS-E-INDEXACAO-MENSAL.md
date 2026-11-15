@@ -165,3 +165,11 @@ Mapeado e validado em produção para o *parser* `normalizeLiveApiViagensToOffer
 
 ### Contrato Real Validado em `/v1/airfares` (Tarifado):
 - Retorna `outbound[]` (ou `combined[]`) com `id` (`"af_..."`), `airlines[]`, `fare_family`, `legs[0].depart_at`, `legs[0].arrive_at`, `legs[0].duration_minutes`, `legs[0].segments[0].baggage` e `price.total` / `price.taxes`. Já mapeado em `normalizeLiveApiViagensToOffers`.
+
+---
+
+## 9. Regras de Validação do Cache de Interseção (Cobertura de Provedores e `isLiveData`)
+
+Para evitar falsos *cache hits* ao alternar estratégias na tela `/pesquisa`:
+1. **`isEntryValidForRequest` exige cobertura completa de provedores**: se uma busca anterior em `CASH_FIRST` (`["tarifado"]`) estiver em cache e o usuário alternar para `SMART_ECONOMY` (`["tarifado", "latam", "smiles"]`) ou `ALL_ELIGIBLE` (`["tarifado", "latam", "smiles", "azul"]`), o sistema detecta a ausência dos provedores adicionais e executa a nova consulta normalmente.
+2. **Isolamento entre cache simulado (`SING_HYBRID_ENGINE`) e API Real (`APIVIAGENS_LIVE`)**: `fetchFlightIntersectionFromSupabase` propaga `isLiveData: bestLeg.source_type === "APIVIAGENS_LIVE"`, garantindo que buscas com **API Real (APIVIAGENS)** habilitada nunca sejam atendidas por registros simulados no Supabase.
