@@ -53,8 +53,10 @@ export interface PurchaseOrderItem {
   singTotalPrice: number;
   airlineDirectReferencePrice: number;
   savingsAmount: number;
+  milesCostTotal?: number;
+  singProfitAmount?: number;
   paymentMethod: "PIX" | "CREDIT_CARD" | "CORPORATE_INVOICE";
-  status: "CONFIRMADO" | "EM_EMISSAO";
+  status: "CONFIRMADO" | "EM_EMISSAO" | "CANCELADO";
   createdAt: string;
 }
 
@@ -336,27 +338,39 @@ export async function fetchDatabaseFromSupabase(): Promise<DatabaseSchema> {
 
     const orders: PurchaseOrderItem[] =
       Array.isArray(orderRows) && orderRows.length > 0
-        ? orderRows.map((o: any) => ({
-            id: o.id,
-            pnr: o.pnr,
-            userId: o.user_id,
-            userEmail: o.user_email,
-            customerName: o.customer_name,
-            customerPhone: o.customer_phone,
-            flightCode: o.flight_code,
-            airline: o.airline,
-            origin: o.origin,
-            destination: o.destination,
-            departureDate: o.departure_date,
-            returnDate: o.return_date || undefined,
-            passengersSummary: o.passengers_summary,
-            singTotalPrice: Number(o.sing_total_price || 0),
-            airlineDirectReferencePrice: Number(o.airline_direct_reference_price || 0),
-            savingsAmount: Number(o.savings_amount || 0),
-            paymentMethod: o.payment_method || "PIX",
-            status: o.status || "CONFIRMADO",
-            createdAt: o.created_at,
-          }))
+        ? orderRows.map((o: any) => {
+            const singTotal = Number(o.sing_total_price || 0);
+            const savings = Number(o.savings_amount || 0);
+            const profit = Number(o.sing_profit_amount ?? savings);
+            const milesCost = Number(
+              o.miles_cost_total ?? Math.max(0, singTotal - profit)
+            );
+            return {
+              id: o.id,
+              pnr: o.pnr,
+              userId: o.user_id,
+              userEmail: o.user_email,
+              customerName: o.customer_name,
+              customerPhone: o.customer_phone,
+              flightCode: o.flight_code,
+              airline: o.airline,
+              origin: o.origin,
+              destination: o.destination,
+              departureDate: o.departure_date,
+              returnDate: o.return_date || undefined,
+              passengersSummary: o.passengers_summary,
+              singTotalPrice: singTotal,
+              airlineDirectReferencePrice: Number(
+                o.airline_direct_reference_price || 0
+              ),
+              savingsAmount: savings,
+              milesCostTotal: milesCost,
+              singProfitAmount: profit,
+              paymentMethod: o.payment_method || "PIX",
+              status: o.status || "CONFIRMADO",
+              createdAt: o.created_at,
+            };
+          })
         : fallback.orders;
 
     return { pricingConfig, users, searchHistory, orders };
@@ -441,6 +455,9 @@ export async function insertUserToSupabase(user: UserAccount): Promise<void> {
 
 export async function insertOrderToSupabase(order: PurchaseOrderItem): Promise<void> {
   try {
+    const profit = order.singProfitAmount ?? order.savingsAmount;
+    const milesCost =
+      order.milesCostTotal ?? Math.max(0, order.singTotalPrice - profit);
     await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
       method: "POST",
       headers: supabaseHeaders({ Prefer: "return=minimal" }),
@@ -461,6 +478,8 @@ export async function insertOrderToSupabase(order: PurchaseOrderItem): Promise<v
         sing_total_price: order.singTotalPrice,
         airline_direct_reference_price: order.airlineDirectReferencePrice,
         savings_amount: order.savingsAmount,
+        miles_cost_total: milesCost,
+        sing_profit_amount: profit,
         payment_method: order.paymentMethod,
         status: order.status,
         created_at: order.createdAt,
@@ -468,6 +487,24 @@ export async function insertOrderToSupabase(order: PurchaseOrderItem): Promise<v
     });
   } catch (err) {
     console.error("Failed to insert order to Supabase:", err);
+  }
+}
+
+export async function updateOrderStatusInSupabase(
+  orderId: string,
+  status: "CONFIRMADO" | "CANCELADO"
+): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${encodeURIComponent(orderId)}`, {
+      method: "PATCH",
+      headers: supabaseHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({
+        status,
+        cancelled_at: status === "CANCELADO" ? new Date().toISOString() : null,
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to update order status in Supabase:", err);
   }
 }
 

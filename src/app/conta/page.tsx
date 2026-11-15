@@ -204,6 +204,47 @@ export default function ContaPage() {
     user?.role === "ADMIN" ||
     user?.email?.toLowerCase() === "donaldson.nunes@gmail.com";
 
+  // Cálculos do Dashboard do Usuário (Apenas Passagens Confirmadas para Economia Real)
+  const confirmedOrders = orders.filter((o) => o.status !== "CANCELADO");
+  const cancelledOrders = orders.filter((o) => o.status === "CANCELADO");
+
+  const totalSingSpent = confirmedOrders.reduce(
+    (acc, o) => acc + Number(o.singTotalPrice || 0),
+    0
+  );
+  const totalAirlineDirectCost = confirmedOrders.reduce(
+    (acc, o) => acc + Number(o.airlineDirectReferencePrice || 0),
+    0
+  );
+  const totalSavedAmount = Math.max(0, totalAirlineDirectCost - totalSingSpent);
+  const savingsPercentage =
+    totalAirlineDirectCost > 0
+      ? Math.round((totalSavedAmount / totalAirlineDirectCost) * 100)
+      : 0;
+  const singCostRatioPercent =
+    totalAirlineDirectCost > 0
+      ? Math.min(100, Math.round((totalSingSpent / totalAirlineDirectCost) * 100))
+      : 80;
+
+  const formatBRL = (val: number) =>
+    val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const handleToggleOrderStatus = async (
+    orderId: string,
+    newStatus: "CONFIRMADO" | "CANCELADO"
+  ) => {
+    await fetch("/api/account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "UPDATE_ORDER_STATUS",
+        orderId,
+        status: newStatus,
+      }),
+    });
+    loadAccountData(user?.email || "donaldson.nunes@gmail.com");
+  };
+
   return (
     <div className="bg-[#FAF8F5] min-h-screen pb-20">
       <section className="bg-[#172C3B] text-[#E8E2D9] py-12 border-b border-[#BD9472]/30">
@@ -498,8 +539,121 @@ export default function ContaPage() {
           )}
         </div>
 
-        {/* Coluna Direita: Histórico de Pesquisas Recentes + Histórico de Compras */}
+        {/* Coluna Direita: Dashboard do Usuário + Histórico de Pesquisas e Compras */}
         <div className="lg:col-span-8 space-y-8">
+          {/* DASHBOARD DO USUÁRIO: Pesquisas, Passagens, Cia x Sing e Economia */}
+          <div className="rounded-2xl bg-[#09090B] text-white p-6 sm:p-7 border border-[#BD9472]/35 shadow-lg space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4">
+              <div>
+                <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-[#BD9472]">
+                  Dashboard do Viajante Sing
+                </span>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">
+                  Resumo das Suas Viagens e Economia Acumulada
+                </h2>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 font-mono text-xs font-bold">
+                Economia média de {savingsPercentage}% nas emissões
+              </span>
+            </div>
+
+            {/* 4 Cards de Indicadores do Usuário */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4">
+                <div className="text-[11px] text-zinc-400 font-medium">
+                  Pesquisas Realizadas
+                </div>
+                <div className="font-mono text-2xl font-extrabold text-white mt-1">
+                  {searchHistory.length}
+                </div>
+                <div className="text-[10px] text-zinc-400 mt-1">
+                  Cotações salvas na conta
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4">
+                <div className="text-[11px] text-zinc-400 font-medium">
+                  Passagens Adquiridas
+                </div>
+                <div className="font-mono text-2xl font-extrabold text-[#BD9472] mt-1">
+                  {confirmedOrders.length}
+                </div>
+                <div className="text-[10px] text-zinc-400 mt-1">
+                  {cancelledOrders.length > 0
+                    ? `${cancelledOrders.length} cancelada(s)`
+                    : "100% ativas e confirmadas"}
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4">
+                <div className="text-[11px] text-zinc-400 font-medium">
+                  Custo Cia Aérea vs. Sing
+                </div>
+                <div className="font-mono text-base font-extrabold text-white mt-1">
+                  {formatBRL(totalSingSpent)}
+                </div>
+                <div className="font-mono text-[11px] text-zinc-400 line-through mt-0.5">
+                  Cia: {formatBRL(totalAirlineDirectCost)}
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-400/30 p-4">
+                <div className="text-[11px] text-emerald-300 font-bold">
+                  Valor Total Economizado
+                </div>
+                <div className="font-mono text-xl font-black text-emerald-300 mt-1">
+                  {formatBRL(totalSavedAmount)}
+                </div>
+                <div className="text-[10px] text-emerald-200/80 mt-1">
+                  Economia direta no seu bolso
+                </div>
+              </div>
+            </div>
+
+            {/* Barra Comparativa Visual: Custo via Cia Aérea vs. Custo via Sing */}
+            <div className="rounded-xl bg-white/[0.03] border border-white/10 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-zinc-300">
+                  Comparativo Acumulado: Compra Direta nas Cias vs. Emissão Inteligente Sing
+                </span>
+                <span className="font-mono text-emerald-300 font-bold">
+                  Você pagou {singCostRatioPercent}% do valor cobrado pelas Cias
+                </span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div>
+                  <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
+                    <span>Custo se comprasse direto nas Companhias Aéreas</span>
+                    <span className="font-mono font-bold text-zinc-300">
+                      {formatBRL(totalAirlineDirectCost)}
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-zinc-500 rounded-full w-full" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] text-[#BD9472] mb-1">
+                    <span className="font-bold">
+                      Custo pago via Sing Viagens (Economia de {formatBRL(totalSavedAmount)})
+                    </span>
+                    <span className="font-mono font-bold text-[#BD9472]">
+                      {formatBRL(totalSingSpent)}
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#BD9472] to-emerald-400 rounded-full transition-all duration-500"
+                      style={{ width: `${singCostRatioPercent}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-2xl bg-white border border-gray-200 p-7 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-extrabold text-[#172C3B] flex items-center gap-2">
@@ -575,41 +729,93 @@ export default function ContaPage() {
             </h2>
 
             <div className="space-y-3">
-              {orders.map((ord) => (
-                <div
-                  key={ord.id}
-                  className="p-4 rounded-xl bg-[#172C3B] text-[#E8E2D9] border border-[#BD9472]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded bg-[#BD9472] text-[#0E1B24] font-mono font-bold text-xs">
-                        Localizador PNR: {ord.pnr}
-                      </span>
-                      <span className="text-xs font-bold text-emerald-300 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {ord.status}
-                      </span>
+              {orders.map((ord) => {
+                const isCancelled = ord.status === "CANCELADO";
+                return (
+                  <div
+                    key={ord.id}
+                    className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                      isCancelled
+                        ? "bg-zinc-100 text-zinc-600 border-zinc-300"
+                        : "bg-[#172C3B] text-[#E8E2D9] border-[#BD9472]/40"
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`px-2.5 py-0.5 rounded font-mono font-bold text-xs ${
+                            isCancelled
+                              ? "bg-zinc-300 text-zinc-800 line-through"
+                              : "bg-[#BD9472] text-[#0E1B24]"
+                          }`}
+                        >
+                          Localizador PNR: {ord.pnr}
+                        </span>
+                        <span
+                          className={`text-xs font-bold flex items-center gap-1 ${
+                            isCancelled ? "text-red-600" : "text-emerald-300"
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          {ord.status}
+                        </span>
+                      </div>
+                      <div
+                        className={`text-sm font-bold ${
+                          isCancelled ? "text-zinc-700 line-through" : "text-white"
+                        }`}
+                      >
+                        {ord.origin} → {ord.destination} • {ord.airline} ({ord.flightCode})
+                      </div>
+                      <div
+                        className={`text-xs ${
+                          isCancelled ? "text-zinc-500" : "text-[#E8E2D9]/75"
+                        }`}
+                      >
+                        Embarque: {ord.departureDate} • {ord.passengersSummary} • Cia:{" "}
+                        {formatBRL(Number(ord.airlineDirectReferencePrice))}
+                      </div>
                     </div>
-                    <div className="text-sm font-bold text-white">
-                      {ord.origin} → {ord.destination} • {ord.airline} ({ord.flightCode})
-                    </div>
-                    <div className="text-xs text-[#E8E2D9]/75">
-                      Embarque: {ord.departureDate} • {ord.passengersSummary} • Pagamento:{" "}
-                      {ord.paymentMethod}
-                    </div>
-                  </div>
 
-                  <div className="text-left sm:text-right">
-                    <div className="text-lg font-black text-[#BD9472]">
-                      R$ {Number(ord.singTotalPrice).toLocaleString("pt-BR")}
-                    </div>
-                    <div className="text-[11px] text-emerald-300 font-semibold">
-                      Economia gerada: R${" "}
-                      {Number(ord.savingsAmount).toLocaleString("pt-BR")}
+                    <div className="text-left sm:text-right space-y-1.5">
+                      <div>
+                        <div
+                          className={`text-lg font-black ${
+                            isCancelled ? "text-zinc-500 line-through" : "text-[#BD9472]"
+                          }`}
+                        >
+                          {formatBRL(Number(ord.singTotalPrice))}
+                        </div>
+                        <div
+                          className={`text-[11px] font-semibold ${
+                            isCancelled ? "text-zinc-500" : "text-emerald-300"
+                          }`}
+                        >
+                          Economia vs. Cia: {formatBRL(Number(ord.savingsAmount))}
+                        </div>
+                      </div>
+
+                      {!isCancelled ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleOrderStatus(ord.id, "CANCELADO")}
+                          className="text-[11px] px-2.5 py-1 rounded-lg bg-red-500/20 text-red-200 hover:bg-red-500/30 font-semibold transition"
+                        >
+                          Cancelar Passagem
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleOrderStatus(ord.id, "CONFIRMADO")}
+                          className="text-[11px] px-2.5 py-1 rounded-lg bg-[#172C3B] text-white hover:opacity-90 font-semibold transition"
+                        >
+                          Reativar Reserva
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

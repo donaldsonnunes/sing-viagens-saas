@@ -4,6 +4,17 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.6.0] — 2026-11-15
+### Adicionado (Dashboard do Usuário e Dashboard Gerencial do Admin por Período)
+- **Dashboard do Usuário (`src/app/conta/page.tsx`)**:
+  - Exibe no topo da área logada os 4 indicadores consolidados do cliente: **Pesquisas Realizadas**, **Passagens Adquiridas**, **Custo via Companhias Aéreas vs. Custo via Sing Viagens** (com barra comparativa visual proporcional) e **Valor Total Economizado (`R$` e `%`)**.
+  - Adicionado botão para cancelar ou reativar reserva diretamente no histórico de compras, refletindo os cálculos em tempo real no Supabase.
+- **Dashboard do Administrador por Período Informado (`src/app/admin/page.tsx`, `src/app/api/admin/pricing/route.ts`, `supabase/migrations/20261115003100_add_dashboard_metrics_and_cancellation_support.sql`)**:
+  - Adicionado filtro de período (`Data Inicial` até `Data Final` + atalhos de `7 dias`, `30 dias` e `Todo o Período`).
+  - Exibe os 4 indicadores gerenciais do período: **1. Quantidade de Pesquisas e Taxa de Conversão (`%`)**, **2. Passagens Compradas e Faturamento Sing (`R$`)**, **3. Lucro Líquido Realizado (`R$`), Margem de Lucro (`%`) e Custo Total de Milhas (`R$`)**, e **4. Cancelamentos no Período (Quantidade, `%` e Volume Cancelado em `R$`)**, acompanhados da tabela auditável de pedidos com ação de cancelamento/reativação em tempo real.
+
+---
+
 ## [2.5.0] — 2026-11-15
 ### Adicionado (Login e Cadastro com Google, ID Apple e Administrador Master `donaldson.nunes@gmail.com`)
 - **Login e Cadastro com Google, ID Apple e E-mail/Senha (`src/app/conta/page.tsx`, `src/app/login/page.tsx`, `src/app/api/account/route.ts`)**:

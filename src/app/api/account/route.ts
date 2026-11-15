@@ -6,6 +6,7 @@ import {
   isSuperAdminEmail,
   SUPABASE_KEY,
   SUPABASE_URL,
+  updateOrderStatusInSupabase,
   writeDb,
 } from "@/lib/db";
 
@@ -271,6 +272,13 @@ export async function POST(request: Request) {
     // 5. Criação de Pedido no Checkout
     if (body.action === "CREATE_ORDER") {
       const pnr = `SNG${Math.floor(100 + Math.random() * 900)}`;
+      const singTotalPrice = Number(body.singTotalPrice) || 1290;
+      const savingsAmount = Number(body.savingsAmount) || 300;
+      const singProfitAmount = Number(body.singProfitAmount ?? savingsAmount);
+      const milesCostTotal = Number(
+        body.milesCostTotal ?? Math.max(0, singTotalPrice - singProfitAmount)
+      );
+
       const newOrder = {
         id: `ord-${Date.now()}`,
         pnr,
@@ -285,9 +293,11 @@ export async function POST(request: Request) {
         departureDate: body.departureDate || "2026-12-10",
         returnDate: body.returnDate,
         passengersSummary: body.passengersSummary || "1 Adulto",
-        singTotalPrice: Number(body.singTotalPrice) || 1290,
+        singTotalPrice,
         airlineDirectReferencePrice: Number(body.airlineDirectReferencePrice) || 1590,
-        savingsAmount: Number(body.savingsAmount) || 300,
+        savingsAmount,
+        milesCostTotal,
+        singProfitAmount,
         paymentMethod: body.paymentMethod || "PIX",
         status: "CONFIRMADO" as const,
         createdAt: new Date().toISOString(),
@@ -296,6 +306,18 @@ export async function POST(request: Request) {
       await insertOrderToSupabase(newOrder);
       writeDb(db);
       return NextResponse.json({ success: true, order: newOrder });
+    }
+
+    // 6. Cancelamento / Reativação de Pedido pelo Usuário ou Admin
+    if (body.action === "UPDATE_ORDER_STATUS" && body.orderId) {
+      const targetStatus: "CONFIRMADO" | "CANCELADO" =
+        body.status === "CANCELADO" ? "CANCELADO" : "CONFIRMADO";
+      await updateOrderStatusInSupabase(body.orderId, targetStatus);
+      const refreshed = await fetchDatabaseFromSupabase();
+      return NextResponse.json({
+        success: true,
+        orders: refreshed.orders,
+      });
     }
 
     return NextResponse.json({ error: "Ação não reconhecida." }, { status: 400 });

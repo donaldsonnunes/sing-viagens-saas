@@ -59,6 +59,8 @@ export default function CheckoutPage() {
         airlineDirectReferencePrice:
           offer?.airlineDirectComparison?.[0]?.directWebsitePriceTotal || 2190,
         savingsAmount: offer?.bestSavingsVsOperatingAirline || 347.5,
+        milesCostTotal: offer?.pricingBreakdown?.totalMilesCostWithTaxes || 1495,
+        singProfitAmount: offer?.pricingBreakdown?.singProfitAmount || 347.5,
         paymentMethod,
       }),
     });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   fetchDatabaseFromSupabase,
   savePricingToSupabase,
+  updateOrderStatusInSupabase,
   writeDb,
 } from "@/lib/db";
 
@@ -9,6 +10,8 @@ export async function GET() {
   const db = await fetchDatabaseFromSupabase();
   return NextResponse.json({
     pricingConfig: db.pricingConfig,
+    searchHistory: db.searchHistory,
+    orders: db.orders,
     stats: {
       totalSearches: db.searchHistory.length,
       totalOrders: db.orders.length,
@@ -74,6 +77,28 @@ export async function PUT(request: Request) {
     console.error("Failed to update pricing config:", err);
     return NextResponse.json(
       { error: "Falha ao atualizar regras de precificação." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { orderId, status } = body;
+    if (!orderId || (status !== "CONFIRMADO" && status !== "CANCELADO")) {
+      return NextResponse.json({ error: "Parâmetros inválidos." }, { status: 400 });
+    }
+    await updateOrderStatusInSupabase(orderId, status);
+    const db = await fetchDatabaseFromSupabase();
+    return NextResponse.json({
+      success: true,
+      orders: db.orders,
+    });
+  } catch (err) {
+    console.error("Failed to update order status:", err);
+    return NextResponse.json(
+      { error: "Falha ao atualizar status do pedido." },
       { status: 500 }
     );
   }
