@@ -616,8 +616,11 @@ export function FlightSearchExperience({
                           <span className="font-display text-xs font-bold px-3 py-1 rounded-lg bg-zinc-100 text-[#09090B]">
                             {offer.operatingAirlineName}
                           </span>
-                          <span className="font-mono text-xs text-zinc-400">
-                            Voo {offer.flightNumber} • {offer.stopsDescription}
+                          <span className="font-mono text-xs text-zinc-500">
+                            Voo {offer.flightNumber}
+                            {offer.returnFlightNumber
+                              ? ` • Volta ${offer.returnFlightNumber}`
+                              : ""}
                           </span>
                         </div>
                         {offer.bestSavingsVsOperatingAirline > 0 && (
@@ -671,8 +674,8 @@ export function FlightSearchExperience({
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#BD9472]/15 text-[#172C3B] border border-[#BD9472]/40 text-[11px] font-bold">
                                 <Clock className="w-3 h-3 text-[#BD9472]" />
-                                {offer.stops === 1
-                                  ? `1 Conexão em ${offer.connections?.[0]?.city}`
+                                {offer.stops === 1 && offer.connections?.[0]
+                                  ? `Parada de ${offer.connections[0].layoverDuration} em ${offer.connections[0].city}`
                                   : `${offer.stops} Conexões`}
                               </span>
                             )}
