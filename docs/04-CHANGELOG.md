@@ -4,6 +4,19 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.10.0] — 2026-11-15
+### Adicionado (Fluxo Ida e Volta em 2 Etapas, Ícones de Bagagem e Inclusão de Bagagens Extras/Especiais)
+- **Seleção Ida e Volta com Resumo Lateral Direito (`src/components/FlightSearchExperience.tsx`, `src/app/checkout/page.tsx`)**:
+  - Ao buscar **Ida e Volta**, clicar no voo de **Ida** exibe o resumo da Ida na lateral direita e aguarda a escolha do voo de **Volta** (sem solicitar dados de passageiros antes de fechar todos os trechos).
+  - Após selecionar **Ida e Volta** (ou **Somente Ida**), o painel lateral direito exibe todos os detalhes dos voos selecionados, o cálculo final da compra e libera o botão **"Ir para Dados dos Passageiros"**.
+- **Ícones Visuais de Bagagem na Passagem + Adição de Bagagem Despachada e Especial (`src/lib/flightEngine.ts`, `src/components/FlightSearchExperience.tsx`)**:
+  - Criada a estrutura `baggagePolicy` (`FlightBaggagePolicy`) em `FlightOfferResult` exibindo em ícones claros em cada card de passagem: **Bolsa Pessoal**, **Mala Pequena 10kg** e **Mala Despachada 23kg** (com selo verde/dourado quando inclusa ou ícone com **X vermelho** quando não inclusa).
+  - Após fechar todos os trechos no resumo lateral, quando permitido pela tarifa, o cliente pode incluir **Malas Despachadas Extras (23kg)** e **Bagagens Especiais** (instrumento musical, equipamento esportivo, etc.), recalculando o valor final antes de seguir para o checkout.
+- **Correção de Tipagem TypeScript (`src/app/api/account/route.ts`)**:
+  - Adicionados os campos opcionais de perfil de passageiro (`firstName`, `lastName`, `birthDate`, `cpf`, `passport`) no objeto `syncedUser` de retorno do OAuth do Supabase.
+
+---
+
 ## [2.9.3] — 2026-11-15
 ### Adicionado (Validação e Confirmação Obrigatória de E-mail no Cadastro de Usuário)
 - **Fluxo de Confirmação de E-mail na Criação de Conta (`src/app/conta/page.tsx`, `src/app/api/account/route.ts`, `src/lib/db.ts`, `supabase/migrations/20261115060500_add_email_verification_to_users.sql`)**:

@@ -32,6 +32,16 @@ export interface FlightStopConnection {
   changeAircraft: boolean;
 }
 
+export interface FlightBaggagePolicy {
+  personalItemIncluded: boolean; // Bolsa / Mochila
+  carryOnIncluded: boolean; // Mala pequena de mão (10kg)
+  checkedBagsIncluded: number; // Quantidade de malas despachadas (23kg) inclusas
+  allowsExtraCheckedBaggage: boolean; // Permite incluir bagagem despachada extra
+  extraCheckedBagPricePerWay: number; // Valor por mala despachada extra por trecho
+  allowsSpecialBaggage: boolean; // Permite bagagem especial (instrumento, equipamento esportivo, etc.)
+  specialBaggagePricePerWay: number; // Valor por bagagem especial por trecho
+}
+
 export interface FlightOfferResult {
   id: string;
   operatingAirlineCode: AirlineKey;
@@ -47,6 +57,7 @@ export interface FlightOfferResult {
   stopsDescription: string;
   connections: FlightStopConnection[];
   baggageIncluded: string;
+  baggagePolicy?: FlightBaggagePolicy;
   eventRecommendationBadge?: string;
   passengerBreakdown: {
     adultsCount: number;
@@ -457,7 +468,23 @@ export function searchAndCompareFlights(
       baggageIncluded:
         params.cabinClass === "BUSINESS"
           ? "2 Bagagens Despachadas 23kg + Mão 10kg + Sala VIP"
-          : "1 Bagagem de Mão 10kg + Item Pessoal + Assistência VIP Sing",
+          : params.cabinClass === "PREMIUM_ECONOMY" || idx === 1
+          ? "1 Bagagem Despachada 23kg + Mão 10kg + Bolsa Pessoal"
+          : "1 Bagagem de Mão 10kg + Item Pessoal (Sem mala despachada)",
+      baggagePolicy: {
+        personalItemIncluded: true,
+        carryOnIncluded: true,
+        checkedBagsIncluded:
+          params.cabinClass === "BUSINESS"
+            ? 2
+            : params.cabinClass === "PREMIUM_ECONOMY" || idx === 1
+            ? 1
+            : 0,
+        allowsExtraCheckedBaggage: true,
+        extraCheckedBagPricePerWay: isInternational ? 290 : 129,
+        allowsSpecialBaggage: true,
+        specialBaggagePricePerWay: isInternational ? 450 : 210,
+      },
       eventRecommendationBadge: item.badge,
       passengerBreakdown: {
         adultsCount: adults,

@@ -846,20 +846,76 @@ export default function CheckoutPage() {
                   <Plane className="w-4 h-4" />
                   <span>Resumo da Passagem Selecionada</span>
                 </div>
-                <div className="text-lg font-extrabold text-white">
-                  {selectedData?.offer
-                    ? `${selectedData.offer.originAirport.city} (${selectedData.offer.originAirport.iata}) → ${selectedData.offer.destinationAirport.city} (${selectedData.offer.destinationAirport.iata})`
-                    : "São Paulo (GRU) → Rio de Janeiro (GIG)"}
+
+                {/* Trecho de Ida */}
+                <div className="p-3.5 rounded-xl bg-white/10 border border-white/15 space-y-1">
+                  <div className="text-[11px] font-mono font-bold text-[#BD9472] uppercase">
+                    Voo de Ida • {selectedData?.searchParams?.departureDate || "2026-12-10"}
+                  </div>
+                  <div className="text-base font-extrabold text-white">
+                    {selectedData?.offer
+                      ? `${selectedData.offer.originAirport.city} (${selectedData.offer.originAirport.iata}) → ${selectedData.offer.destinationAirport.city} (${selectedData.offer.destinationAirport.iata})`
+                      : "São Paulo (GRU) → Rio de Janeiro (GIG)"}
+                  </div>
+                  <div className="text-xs text-[#E8E2D9]/80">
+                    {selectedData?.offer
+                      ? `${selectedData.offer.operatingAirlineName} • Voo ${selectedData.offer.flightNumber} • ${selectedData.offer.departureTime} - ${selectedData.offer.arrivalTime}`
+                      : "LATAM Airlines (LA3418)"}
+                  </div>
                 </div>
-                <div className="text-xs text-[#E8E2D9]/80">
-                  Voo:{" "}
-                  {selectedData?.offer
-                    ? `${selectedData.offer.operatingAirlineName} (${selectedData.offer.flightNumber})`
-                    : "LATAM Airlines (LA3418)"}
-                </div>
+
+                {/* Trecho de Volta (quando Ida e Volta) */}
+                {selectedData?.returnOffer && (
+                  <div className="p-3.5 rounded-xl bg-white/10 border border-white/15 space-y-1">
+                    <div className="text-[11px] font-mono font-bold text-[#BD9472] uppercase">
+                      Voo de Volta • {selectedData?.searchParams?.returnDate || ""}
+                    </div>
+                    <div className="text-base font-extrabold text-white">
+                      {selectedData.returnOffer.destinationAirport.city} (
+                      {selectedData.returnOffer.destinationAirport.iata}) →{" "}
+                      {selectedData.returnOffer.originAirport.city} (
+                      {selectedData.returnOffer.originAirport.iata})
+                    </div>
+                    <div className="text-xs text-[#E8E2D9]/80">
+                      {selectedData.returnOffer.operatingAirlineName} • Voo{" "}
+                      {selectedData.returnOffer.returnFlightNumber ||
+                        selectedData.returnOffer.flightNumber}{" "}
+                      • {selectedData.returnOffer.departureTime} -{" "}
+                      {selectedData.returnOffer.arrivalTime}
+                    </div>
+                  </div>
+                )}
+
                 <div className="text-xs text-[#BD9472] font-semibold">
                   Passageiros no bilhete: {passengersDetails.length} viajante(s)
                 </div>
+
+                {selectedData?.baggageExtras &&
+                  (selectedData.baggageExtras.extraCheckedBags > 0 ||
+                    selectedData.baggageExtras.specialBags > 0) && (
+                    <div className="p-3 rounded-xl bg-[#0E1B24]/70 border border-[#BD9472]/40 text-xs space-y-1">
+                      <div className="font-bold text-[#BD9472]">
+                        Bagagens Adicionais Incluídas:
+                      </div>
+                      {selectedData.baggageExtras.extraCheckedBags > 0 && (
+                        <div>
+                          • {selectedData.baggageExtras.extraCheckedBags}x Mala(s) Despachada(s) 23kg
+                        </div>
+                      )}
+                      {selectedData.baggageExtras.specialBags > 0 && (
+                        <div>
+                          • {selectedData.baggageExtras.specialBags}x Bagagem(ns) Especial(is)
+                        </div>
+                      )}
+                      <div className="font-mono font-bold text-emerald-300 pt-1">
+                        Acréscimo bagagens: +R${" "}
+                        {Number(
+                          selectedData.baggageExtras.baggageExtraTotal || 0
+                        ).toLocaleString("pt-BR")}
+                      </div>
+                    </div>
+                  )}
+
                 <div className="pt-4 border-t border-white/10 space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span>Preço no site oficial da Cia Aérea:</span>

@@ -592,6 +592,11 @@ export async function POST(request: Request) {
         : {
             id: supaUser.id || `usr-${Date.now()}`,
             name,
+            firstName: "",
+            lastName: "",
+            birthDate: "",
+            cpf: "",
+            passport: "",
             email,
             passwordHash: "oauth_managed",
             phone: supaUser.phone || "",
