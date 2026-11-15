@@ -17,7 +17,7 @@ export default function ContatoPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#BD9472]">
             <Sparkles className="w-4 h-4" />
-            <span>Atendimento Humano & Concierge VIP</span>
+            <span>Atendimento Humano & Atendente Virtual</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-extrabold text-white">
             Contato e Solicitação de Orçamento Personalizado

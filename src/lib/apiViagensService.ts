@@ -1020,9 +1020,10 @@ export async function searchFlightsWithApiViagensOptimization(params: {
  */
 export function indexFullMonthForRoute(
   searchParams: FlightSearchParams,
-  referenceOffers: FlightOfferResult[]
+  referenceOffers: FlightOfferResult[],
+  targetYearMonth?: string
 ): PreSearchCalendarDay[] {
-  const yearMonth = searchParams.departureDate.slice(0, 7); // Ex: "2026-11"
+  const yearMonth = targetYearMonth || searchParams.departureDate.slice(0, 7); // Ex: "2026-11"
   const monthKey = `month_${searchParams.origin.toUpperCase()}_${searchParams.destination.toUpperCase()}_${yearMonth}_${
     searchParams.cabinClass
   }`;
@@ -1162,17 +1163,44 @@ export function generateZeroCreditDateMatrix(
   searchParams: FlightSearchParams,
   referenceOffers: FlightOfferResult[]
 ): PreSearchCalendarDay[] {
-  const fullMonth = indexFullMonthForRoute(searchParams, referenceOffers);
-  const selectedIdx = fullMonth.findIndex(
-    (d) => d.date === searchParams.departureDate
-  );
-
-  if (selectedIdx === -1) {
-    return fullMonth.slice(0, 7);
+  const baseDate = new Date(`${searchParams.departureDate}T12:00:00`);
+  if (isNaN(baseDate.getTime())) {
+    return [];
   }
 
-  const startIdx = Math.max(0, Math.min(selectedIdx - 3, fullMonth.length - 7));
-  const window7 = fullMonth.slice(startIdx, startIdx + 7);
+  // Garante que todos os meses tocados pela janela (-3 a +3 dias) estejam indexados
+  const touchedMonths = new Set<string>();
+  const targetDates: string[] = [];
+  for (let offset = -3; offset <= 3; offset++) {
+    const d = new Date(baseDate.getTime() + offset * 24 * 60 * 60 * 1000);
+    const isoDate = d.toISOString().slice(0, 10);
+    targetDates.push(isoDate);
+    touchedMonths.add(isoDate.slice(0, 7));
+  }
+
+  const monthDataByYearMonth = new Map<string, PreSearchCalendarDay[]>();
+  for (const ym of touchedMonths) {
+    monthDataByYearMonth.set(
+      ym,
+      indexFullMonthForRoute(searchParams, referenceOffers, ym)
+    );
+  }
+
+  const window7: PreSearchCalendarDay[] = [];
+  for (const isoDate of targetDates) {
+    const ym = isoDate.slice(0, 7);
+    const dayEntry = monthDataByYearMonth
+      .get(ym)
+      ?.find((d) => d.date === isoDate);
+    if (dayEntry) {
+      window7.push(dayEntry);
+    }
+  }
+
+  if (window7.length === 0) {
+    return [];
+  }
+
   const minWindowPrice = Math.min(
     ...window7.map((d) => d.estimatedLowestSingBRL)
   );

@@ -21,7 +21,7 @@ export function WhatsAppFloatingButton() {
       </span>
       <div className="pr-1 hidden sm:block">
         <div className="text-[10px] font-bold uppercase tracking-wider text-[#BD9472] leading-none">
-          Concierge Sing
+          Atendente Virtual
         </div>
         <div className="text-xs font-extrabold text-white leading-tight mt-0.5">
           Falar no WhatsApp

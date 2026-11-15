@@ -91,10 +91,13 @@ Com a nossa tabela **`public.flight_leg_inventory`** e o índice em memória **`
 2. As conexões intermediárias (`complete_path`) são salvas na coluna `path_airports text[]` indexada via **GIN (`USING GIN (path_airports)`)**.
 3. Qualquer pesquisa futura que tenha interseção com o dia da ida, com o dia da volta ou com um trecho intermediário reaproveita os voos já armazenados sem chamar a API!
 
-### 3.2. Matriz Mensal Pré-Indexada (`public.monthly_fare_calendar`)
+### 3.2. Matriz Mensal Pré-Indexada (`public.monthly_fare_calendar`) & Janela Deslizante de 7 Dias
 Sempre que uma rota `Origem -> Destino` é consultada em qualquer dia de um mês (ex.: `2026-11-20`), a função `indexFullMonthForRoute`:
-- Indexa todos os **30/31 dias daquele mês (`YYYY-MM = 2026-11`)** para o par `Origem -> Destino`.
+- Indexa todos os **30/31 dias daquele mês (`YYYY-MM = 2026-11`)** para o par `Origem -> Destino` (e qualquer mês adjacente tocado pela janela de `-3` a `+3` dias).
 - Marca os dias com busca real confirmada na API como `is_api_verified = true` (`CACHE_REAL`) e preenche os demais dias com a matriz mensal de custo fixo.
+- **Apresentação para o Usuário Final (`generateZeroCreditDateMatrix` / `FlightSearchExperience.tsx`)**:
+  - Exibe por padrão **7 dias centrados na data escolhida** (`3 dias antes`, `data selecionada`, `3 dias depois`), mesmo quando a janela cruza a virada do mês.
+  - Mantém o foco visual na data informada pelo usuário (`Sua data`), sinaliza o dia mais econômico (`★ Mais barata`) e, ao clicar em outra data, recalcula automaticamente a nova janela de 7 dias centrada na data recém-selecionada.
 - Disponibiliza a função PostgreSQL `public.query_flight_intersection(p_origin, p_destination, p_departure_date, p_return_date, p_cabin_class)` que retorna em **uma única consulta SQL**:
   - `outbound_cached_legs` (interseção da ida)
   - `inbound_cached_legs` (interseção da volta)

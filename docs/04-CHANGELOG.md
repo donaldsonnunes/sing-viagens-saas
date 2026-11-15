@@ -63,8 +63,8 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
   - **Parser Real Calibrado (`normalizeLiveApiViagensToOffers`)**: Desempacota `payload.providers[provider].list_flights.departure`, horários ISO `main_path`, trechos `complete_path` (`LA3378`), `duration` e `raw_pricing` (`miles` + `tax_amount`).
 - **Estrutura de Dados de Inventário Atômico & Indexação por Interseção Mensal (`supabase/migrations/20261115012000_flight_inventory_intersection_index.sql`)**:
   - Criadas as tabelas `public.flight_leg_inventory` (com índices B-Tree compostos por rota/data/mês e índice GIN em `path_airports` para conexões) e `public.monthly_fare_calendar` (armazenando os 30/31 dias do mês `YYYY-MM` para cada par `Origem -> Destino`), além da função SQL `public.query_flight_intersection`.
-- **Painel Visual de Consumo e Faixa de Datas Pré-Busca na UI (`src/components/FlightSearchExperience.tsx`, `src/app/api/flights/search/route.ts`, `src/app/api/apiviagens/book/route.ts`, `src/app/api/apiviagens/account/route.ts`)**:
-  - Exibe na tela de pesquisa o status do Cache/Gateway, os programas consultados vs. poupados, seletor de Modo de Consumo (`1 Créd. / Smart / Completo`) e calendário interativo de pré-busca.
+- **Painel Visual de Consumo e Faixa Deslizante de 7 Dias na UI (`src/components/FlightSearchExperience.tsx`, `src/app/api/flights/search/route.ts`, `src/app/api/apiviagens/book/route.ts`, `src/app/api/apiviagens/account/route.ts`)**:
+  - Exibe na tela de pesquisa o status do Cache/Gateway, os programas consultados vs. poupados, seletor de Modo de Consumo (`1 Créd. / Smart / Completo`) e faixa de **7 dias centrada na data do usuário** (`3 dias antes • Sua data • 3 dias depois`, inclusive na virada de mês), sinalizando a tarifa mais barata (`★ Mais barata`) e recalculando os 7 dias ao selecionar outra data.
 
 ---
 

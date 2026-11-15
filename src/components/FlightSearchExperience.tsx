@@ -753,12 +753,12 @@ export function FlightSearchExperience({
             </div>
           </div>
 
-          {/* Faixa de 7 Dias de Pré-Busca (Zero Consumo de Créditos na API) */}
+          {/* Faixa de 7 Dias para o Usuário Final (3 antes • Data selecionada • 3 depois) */}
           {preSearchCalendar.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-[11px] text-zinc-500">
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-500">
                 <span className="font-semibold text-[#172C3B]">
-                  Calendário Pré-Filtro de Custo Fixo (Escolha a melhor data antes de gastar créditos na API):
+                  Melhores tarifas na janela de 7 dias (3 antes e 3 depois da sua data):
                 </span>
                 <span className="font-mono text-emerald-700 font-bold">
                   Economia na Sessão: {telemetry.totalSessionCreditsSaved} créd. (R${" "}
@@ -769,44 +769,50 @@ export function FlightSearchExperience({
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
-                {preSearchCalendar.map((day: any) => (
-                  <button
-                    key={day.date}
-                    type="button"
-                    onClick={() => {
-                      setDepartureDate(day.date);
-                      executeFlightSearch(true, day.date);
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition ${
-                      day.isSelectedDate
-                        ? "bg-[#09090B] text-white border-[#09090B] shadow-sm"
-                        : day.isCheapestInWindow
-                        ? "bg-emerald-50/70 border-emerald-300 hover:bg-emerald-100/70 text-[#09090B]"
-                        : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-[#09090B]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-[10px] opacity-80 font-mono">
-                      <span>{day.dayOfWeekLabel}</span>
-                      <span>{day.date.slice(5)}</span>
-                    </div>
-                    <div className="font-mono text-xs sm:text-sm font-bold mt-1">
-                      {formatBRL(day.estimatedLowestSingBRL)}
-                    </div>
-                    <div
-                      className={`text-[10px] font-medium truncate ${
+                {preSearchCalendar.map((day: any) => {
+                  const [yyyy, mm, dd] = String(day.date).split("-");
+                  const formattedBrDate = dd && mm ? `${dd}/${mm}` : day.date.slice(5);
+                  return (
+                    <button
+                      key={day.date}
+                      type="button"
+                      onClick={() => {
+                        setDepartureDate(day.date);
+                        executeFlightSearch(true, day.date);
+                      }}
+                      className={`relative p-2.5 rounded-xl border text-left transition ${
                         day.isSelectedDate
-                          ? "text-[#BD9472]"
+                          ? "bg-[#09090B] text-white border-[#BD9472] ring-2 ring-[#BD9472]/40 shadow-md"
                           : day.isCheapestInWindow
-                          ? "text-emerald-700 font-bold"
-                          : "text-zinc-500"
+                          ? "bg-emerald-50/80 border-emerald-400 hover:bg-emerald-100/80 text-[#09090B]"
+                          : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-[#09090B]"
                       }`}
                     >
-                      {day.isCheapestInWindow
-                        ? "★ Menor Tarifa"
-                        : `~${(day.estimatedLowestMiles / 1000).toFixed(1)}k mi`}
-                    </div>
-                  </button>
-                ))}
+                      <div className="flex items-center justify-between text-[10px] opacity-85 font-mono">
+                        <span>{day.dayOfWeekLabel}</span>
+                        <span>{formattedBrDate}</span>
+                      </div>
+                      <div className="font-mono text-xs sm:text-sm font-bold mt-1">
+                        {formatBRL(day.estimatedLowestSingBRL)}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-1">
+                        {day.isSelectedDate ? (
+                          <span className="text-[10px] font-bold text-[#BD9472] truncate">
+                            {day.isCheapestInWindow ? "Sua data • ★ Menor" : "Sua data"}
+                          </span>
+                        ) : day.isCheapestInWindow ? (
+                          <span className="text-[10px] font-bold text-emerald-700 truncate">
+                            ★ Mais barata
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium text-zinc-500 truncate">
+                            ~{(day.estimatedLowestMiles / 1000).toFixed(1)}k mi
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
