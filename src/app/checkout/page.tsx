@@ -16,6 +16,8 @@ import {
   FileText,
   Users,
   UserPlus,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 
 interface PassengerFormRow {
@@ -74,6 +76,9 @@ export default function CheckoutPage() {
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
+  const [showAnacConsentModal, setShowAnacConsentModal] = useState(false);
+  const [anacConsentChecked, setAnacConsentChecked] = useState(false);
+  const [submittingOrder, setSubmittingOrder] = useState(false);
 
   const loadFrequentPassengersForEmail = async (
     targetEmail: string,
@@ -433,7 +438,16 @@ export default function CheckoutPage() {
       }
     }
 
-    const offer = selectedData?.offer;
+    setAnacConsentChecked(false);
+    setShowAnacConsentModal(true);
+  };
+
+  const executeCreateOrder = async () => {
+    if (!anacConsentChecked || submittingOrder) return;
+    setSubmittingOrder(true);
+    setCheckoutError("");
+    try {
+      const offer = selectedData?.offer;
     const baggageExtraTotal = Number(
       selectedData?.baggageExtras?.baggageExtraTotal || 0
     );
@@ -493,16 +507,21 @@ export default function CheckoutPage() {
         paymentMethod,
       }),
     });
-    const data = await res.json();
-    if (!res.ok || data.error) {
-      setCheckoutError(data.error || "Não foi possível confirmar a emissão.");
-      return;
-    }
-    if (data.frequentPassengers) {
-      setFrequentPassengers(data.frequentPassengers);
-    }
-    if (data.order) {
-      setConfirmedOrder(data.order);
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setCheckoutError(data.error || "Não foi possível confirmar a emissão.");
+        setShowAnacConsentModal(false);
+        return;
+      }
+      if (data.frequentPassengers) {
+        setFrequentPassengers(data.frequentPassengers);
+      }
+      if (data.order) {
+        setConfirmedOrder(data.order);
+        setShowAnacConsentModal(false);
+      }
+    } finally {
+      setSubmittingOrder(false);
     }
   };
 
@@ -1117,6 +1136,105 @@ export default function CheckoutPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Ciência e Consentimento ANAC antes da Emissão */}
+      {showAnacConsentModal && (
+        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white border-2 border-[#BD9472] shadow-2xl overflow-hidden animate-fade-up">
+            <div className="bg-[#172C3B] text-white px-6 py-4 flex items-center justify-between border-b border-[#BD9472]/40">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-mono uppercase tracking-widest text-[#BD9472] font-bold">
+                    Termo de Ciência Obrigatório
+                  </div>
+                  <h3 className="text-base font-extrabold text-white">
+                    ATENÇÃO — Normas da ANAC e Regras Tarifárias
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAnacConsentModal(false)}
+                className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition"
+                aria-label="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs sm:text-sm text-zinc-700 leading-relaxed">
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 space-y-2.5">
+                <p>
+                  De acordo com as <strong>resoluções e normas da ANAC</strong>{" "}
+                  (Agência Nacional de Aviação Civil), a compra da passagem
+                  aérea só poderá ser <strong>cancelada sem nenhum custo</strong>{" "}
+                  em até <strong>24 (vinte e quatro) horas</strong> a partir do
+                  recebimento do comprovante da emissão, inclusive em caso de{" "}
+                  <strong>informações incorretas fornecidas</strong> no
+                  preenchimento dos dados dos passageiros.
+                </p>
+                <p>
+                  <strong>Após este prazo de 24 horas</strong>, serão seguidas
+                  integralmente as regras da{" "}
+                  <strong>
+                    classe tarifária e do tipo de passagem adquirida
+                  </strong>{" "}
+                  fornecidas pela companhia aérea emissora (sujeitas a multas,
+                  diferenças tarifárias ou restrições de reembolso),{" "}
+                  <strong>não sendo mais possível reverter a emissão</strong>.
+                </p>
+              </div>
+
+              <div className="text-xs text-zinc-500">
+                Antes de concluir, certifique-se de que nome, sobrenome, data de
+                nascimento, CPF e eventual passaporte/validade conferem
+                exatamente com os documentos oficiais de embarque.
+              </div>
+
+              <label className="flex items-start gap-3 p-3.5 rounded-xl bg-[#FAF8F5] border border-gray-200 hover:border-[#BD9472] cursor-pointer transition">
+                <input
+                  type="checkbox"
+                  checked={anacConsentChecked}
+                  onChange={(e) => setAnacConsentChecked(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-[#172C3B] rounded cursor-pointer shrink-0"
+                />
+                <span className="text-xs font-semibold text-[#172C3B]">
+                  Li, compreendi e concordo com as normas da ANAC, assumindo
+                  ciência do prazo de 24 horas para cancelamento sem custos e das
+                  regras da classe/tarifa da companhia aérea após esse período.
+                </span>
+              </label>
+
+              <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAnacConsentModal(false)}
+                  className="flex-1 py-3 px-4 rounded-xl border border-gray-300 text-zinc-700 font-bold text-xs hover:bg-gray-50 transition"
+                >
+                  Revisar Dados
+                </button>
+                <button
+                  type="button"
+                  disabled={!anacConsentChecked || submittingOrder}
+                  onClick={executeCreateOrder}
+                  className={`flex-1 py-3 px-4 rounded-xl font-extrabold text-xs transition shadow-md ${
+                    anacConsentChecked && !submittingOrder
+                      ? "bg-[#BD9472] text-[#0E1B24] hover:bg-[#D4AF8E] cursor-pointer"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+                  }`}
+                >
+                  {submittingOrder
+                    ? "Emitindo Localizador..."
+                    : "Concordar e Finalizar Compra"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showVoucherModal && confirmedOrder && (
         <TicketVoucherModal
