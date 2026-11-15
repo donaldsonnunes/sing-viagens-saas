@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb } from "@/lib/db";
+import {
+  fetchDatabaseFromSupabase,
+  insertOrderToSupabase,
+  insertUserToSupabase,
+  writeDb,
+} from "@/lib/db";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const email = searchParams.get("email") || "cliente@singviagens.com.br";
-  const db = readDb();
+  const db = await fetchDatabaseFromSupabase();
 
   const user =
     db.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ||
@@ -34,7 +39,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const db = readDb();
+    const db = await fetchDatabaseFromSupabase();
 
     if (body.action === "LOGIN") {
       const user = db.users.find(
@@ -44,7 +49,10 @@ export async function POST(request: Request) {
       );
       if (!user) {
         return NextResponse.json(
-          { error: "Credenciais inválidas. Use cliente@singviagens.com.br / 123456 ou admin@singviagens.com.br / sing2026" },
+          {
+            error:
+              "Credenciais inválidas. Use cliente@singviagens.com.br / 123456 ou admin@singviagens.com.br / sing2026",
+          },
           { status: 401 }
         );
       }
@@ -79,6 +87,7 @@ export async function POST(request: Request) {
         createdAt: new Date().toISOString(),
       };
       db.users.push(newUser);
+      await insertUserToSupabase(newUser);
       writeDb(db);
       return NextResponse.json({
         user: {
@@ -115,6 +124,7 @@ export async function POST(request: Request) {
         createdAt: new Date().toISOString(),
       };
       db.orders.unshift(newOrder);
+      await insertOrderToSupabase(newOrder);
       writeDb(db);
       return NextResponse.json({ success: true, order: newOrder });
     }

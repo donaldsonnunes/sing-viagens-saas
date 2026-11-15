@@ -4,6 +4,21 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.4.0] — 2026-11-14
+### Adicionado (Integração Oficial com Banco de Dados Supabase PostgreSQL — Região São Paulo `sa-east-1`)
+- **Criação e Provisionamento do Projeto Supabase (`sing-viagens-saas` / `lbbjgxvbjbsoaglsccun`)**:
+  - Banco PostgreSQL provisionado na região `sa-east-1` (São Paulo, Brasil) para latência mínima junto à Vercel (`gru1`).
+  - Migration inicial aplicada (`supabase/migrations/20261114225600_init_sing_viagens_schema.sql`) criando as tabelas:
+    - `public.pricing_rules` (precificação por milheiro e spread por companhia aérea)
+    - `public.users` (clientes e administradores)
+    - `public.search_history` (histórico de pesquisas de passagens)
+    - `public.orders` (reservas e localizadores PNR)
+    - `public.external_api_logs` (tabela dedicada para armazenar payloads de requisição/resposta, status HTTP e tempo de resposta em milissegundos durante os testes de APIs externas de voos e milhas).
+- **Persistência em Nuvem nas Rotas da Aplicação (`src/lib/db.ts`, `/api/admin/pricing`, `/api/flights/search`, `/api/account`)**:
+  - Todas as pesquisas de voos, alterações de preço do milheiro no `/admin`, cadastros de clientes e reservas no `/checkout` agora gravam e consultam diretamente o banco PostgreSQL do Supabase em tempo real.
+
+---
+
 ## [2.3.0] — 2026-11-14
 ### Alterado (Foco Comercial 100% em Passagens Aéreas para Shows & Limpeza de Jargões Técnicos)
 - **Foco Exclusivo em Passagens Aéreas na Fase 1 (`src/data/siteContent.ts`, `src/components/FlightSearchExperience.tsx`, `src/app/page.tsx`, `src/app/servicos/*`)**:

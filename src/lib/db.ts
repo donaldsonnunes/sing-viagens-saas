@@ -6,22 +6,16 @@ export type AirlineKey = "LATAM" | "GOL" | "AZUL" | "TAP" | "AMERICAN" | "AIRFRA
 export interface PricingRuleConfig {
   /**
    * Percentual de lucro sobre o Spread (diferença entre o Preço na Cia Aérea e o Custo em Milhas Sing).
-   * Exemplo oficial: Se o custo em milhas + taxas fica R$ 1.000,00 e na Cia Aérea custa R$ 1.500,00,
-   * a diferença (spread) é R$ 500,00. Com 50% parametrizado, o lucro é R$ 250,00 e o Preço Final Sing = R$ 1.250,00.
    */
-  profitShareOnSavingsPercent: number; // Padrão: 50%
+  profitShareOnSavingsPercent: number;
   /**
    * Valor de compra do milheiro (1.000 milhas) em R$ para cada companhia aérea
    */
   mileCostPerThousand: Record<AirlineKey, number>;
-  /**
-   * Caso em algum voo específico o custo em milhas supere ou empate com a tarifa em dinheiro,
-   * aplica margem mínima de segurança (%)
-   */
   fallbackMarkupPercent: number;
-  fixedEmissionFeePerPassenger: number; // Taxa administrativa opcional (R$ 0 por padrão para cálculo puro do spread)
-  childDiscountPercent: number; // Desconto para Criança (2 a 11 anos)
-  infantDiscountPercent: number; // Desconto para Bebê de colo (0 a 1 ano)
+  fixedEmissionFeePerPassenger: number;
+  childDiscountPercent: number;
+  infantDiscountPercent: number;
   updatedAt: string;
 }
 
@@ -81,9 +75,26 @@ export interface DatabaseSchema {
   orders: PurchaseOrderItem[];
 }
 
+// Conexão Oficial Supabase (Região sa-east-1 São Paulo)
+export const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lbbjgxvbjbsoaglsccun.supabase.co";
+export const SUPABASE_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiYmpneHZiamJzb2FnbHNjY3VuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3MDE1MDQsImV4cCI6MjExMDI3NzUwNH0.44rc-OXXvzjw6HCCkIOl3rdXEPQn55e2IfLHQ-RHq-E";
+
+function supabaseHeaders(extra?: Record<string, string>): Record<string, string> {
+  return {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    "Content-Type": "application/json",
+    ...extra,
+  };
+}
+
 const DB_FILE_PATH = path.join(process.cwd(), "src", "data", "db.json");
 
-const DEFAULT_DB: DatabaseSchema = {
+export const DEFAULT_DB: DatabaseSchema = {
   pricingConfig: {
     profitShareOnSavingsPercent: 50,
     mileCostPerThousand: {
@@ -182,13 +193,10 @@ const DEFAULT_DB: DatabaseSchema = {
 export function readDb(): DatabaseSchema {
   try {
     if (!fs.existsSync(DB_FILE_PATH)) {
-      fs.mkdirSync(path.dirname(DB_FILE_PATH), { recursive: true });
-      fs.writeFileSync(DB_FILE_PATH, JSON.stringify(DEFAULT_DB, null, 2), "utf-8");
       return DEFAULT_DB;
     }
     const raw = fs.readFileSync(DB_FILE_PATH, "utf-8");
     const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
-    // Garante compatibilidade caso db.json antigo exista sem os novos campos de milheiro
     const mergedPricing: PricingRuleConfig = {
       ...DEFAULT_DB.pricingConfig,
       ...(parsed.pricingConfig || {}),
@@ -212,7 +220,250 @@ export function writeDb(data: DatabaseSchema): void {
   try {
     fs.mkdirSync(path.dirname(DB_FILE_PATH), { recursive: true });
     fs.writeFileSync(DB_FILE_PATH, JSON.stringify(data, null, 2), "utf-8");
+  } catch {
+    // Em ambiente Serverless (Vercel), a persistência principal ocorre no Supabase
+  }
+}
+
+/**
+ * Funções Assíncronas Integradas ao Supabase PostgreSQL (sa-east-1)
+ */
+export async function fetchDatabaseFromSupabase(): Promise<DatabaseSchema> {
+  const fallback = readDb();
+  try {
+    const [pricingRes, usersRes, searchRes, ordersRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/pricing_rules?id=eq.default&select=*`, {
+        headers: supabaseHeaders(),
+        cache: "no-store",
+      }),
+      fetch(`${SUPABASE_URL}/rest/v1/users?select=*&order=created_at.asc`, {
+        headers: supabaseHeaders(),
+        cache: "no-store",
+      }),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/search_history?select=*&order=created_at.desc&limit=30`,
+        {
+          headers: supabaseHeaders(),
+          cache: "no-store",
+        }
+      ),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*&order=created_at.desc&limit=50`, {
+        headers: supabaseHeaders(),
+        cache: "no-store",
+      }),
+    ]);
+
+    const pricingRows = pricingRes.ok ? await pricingRes.json() : [];
+    const userRows = usersRes.ok ? await usersRes.json() : [];
+    const searchRows = searchRes.ok ? await searchRes.json() : [];
+    const orderRows = ordersRes.ok ? await ordersRes.json() : [];
+
+    const pRow = pricingRows[0];
+    const pricingConfig: PricingRuleConfig = pRow
+      ? {
+          profitShareOnSavingsPercent: Number(pRow.profit_share_on_savings_percent ?? 50),
+          mileCostPerThousand: {
+            ...DEFAULT_DB.pricingConfig.mileCostPerThousand,
+            ...(pRow.mile_cost_per_thousand || {}),
+          },
+          fallbackMarkupPercent: Number(pRow.fallback_markup_percent ?? 10),
+          fixedEmissionFeePerPassenger: Number(pRow.fixed_emission_fee_per_passenger ?? 0),
+          childDiscountPercent: Number(pRow.child_discount_percent ?? 25),
+          infantDiscountPercent: Number(pRow.infant_discount_percent ?? 85),
+          updatedAt: pRow.updated_at || new Date().toISOString(),
+        }
+      : fallback.pricingConfig;
+
+    const users: UserAccount[] =
+      Array.isArray(userRows) && userRows.length > 0
+        ? userRows.map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            passwordHash: u.password_hash,
+            phone: u.phone || "",
+            role: u.role === "ADMIN" ? "ADMIN" : "CUSTOMER",
+            createdAt: u.created_at,
+          }))
+        : fallback.users;
+
+    const searchHistory: SearchHistoryItem[] =
+      Array.isArray(searchRows) && searchRows.length > 0
+        ? searchRows.map((s: any) => ({
+            id: s.id,
+            userId: s.user_id,
+            userEmail: s.user_email,
+            origin: s.origin,
+            destination: s.destination,
+            departureDate: s.departure_date,
+            returnDate: s.return_date || undefined,
+            tripType: s.trip_type === "ONE_WAY" ? "ONE_WAY" : "ROUND_TRIP",
+            adults: Number(s.adults || 1),
+            childrenAges: Array.isArray(s.children_ages) ? s.children_ages : [],
+            cabinClass: s.cabin_class || "ECONOMY",
+            lowestSingPrice: Number(s.lowest_sing_price || 0),
+            lowestAirlineDirectPrice: Number(s.lowest_airline_direct_price || 0),
+            createdAt: s.created_at,
+          }))
+        : fallback.searchHistory;
+
+    const orders: PurchaseOrderItem[] =
+      Array.isArray(orderRows) && orderRows.length > 0
+        ? orderRows.map((o: any) => ({
+            id: o.id,
+            pnr: o.pnr,
+            userId: o.user_id,
+            userEmail: o.user_email,
+            customerName: o.customer_name,
+            customerPhone: o.customer_phone,
+            flightCode: o.flight_code,
+            airline: o.airline,
+            origin: o.origin,
+            destination: o.destination,
+            departureDate: o.departure_date,
+            returnDate: o.return_date || undefined,
+            passengersSummary: o.passengers_summary,
+            singTotalPrice: Number(o.sing_total_price || 0),
+            airlineDirectReferencePrice: Number(o.airline_direct_reference_price || 0),
+            savingsAmount: Number(o.savings_amount || 0),
+            paymentMethod: o.payment_method || "PIX",
+            status: o.status || "CONFIRMADO",
+            createdAt: o.created_at,
+          }))
+        : fallback.orders;
+
+    return { pricingConfig, users, searchHistory, orders };
   } catch (err) {
-    console.error("Failed to write db.json:", err);
+    console.error("Supabase fetch fallback to local:", err);
+    return fallback;
+  }
+}
+
+export async function savePricingToSupabase(config: PricingRuleConfig): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/pricing_rules?id=eq.default`, {
+      method: "PATCH",
+      headers: supabaseHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({
+        profit_share_on_savings_percent: config.profitShareOnSavingsPercent,
+        mile_cost_per_thousand: config.mileCostPerThousand,
+        fallback_markup_percent: config.fallbackMarkupPercent,
+        fixed_emission_fee_per_passenger: config.fixedEmissionFeePerPassenger,
+        child_discount_percent: config.childDiscountPercent,
+        infant_discount_percent: config.infantDiscountPercent,
+        updated_at: config.updatedAt,
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to save pricing to Supabase:", err);
+  }
+}
+
+export async function insertSearchHistoryToSupabase(
+  item: SearchHistoryItem
+): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/search_history`, {
+      method: "POST",
+      headers: supabaseHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({
+        id: item.id,
+        user_id: item.userId,
+        user_email: item.userEmail,
+        origin: item.origin,
+        destination: item.destination,
+        departure_date: item.departureDate,
+        return_date: item.returnDate || null,
+        trip_type: item.tripType,
+        adults: item.adults,
+        children_ages: item.childrenAges,
+        cabin_class: item.cabinClass,
+        lowest_sing_price: item.lowestSingPrice,
+        lowest_airline_direct_price: item.lowestAirlineDirectPrice,
+        created_at: item.createdAt,
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to insert search history to Supabase:", err);
+  }
+}
+
+export async function insertUserToSupabase(user: UserAccount): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+      method: "POST",
+      headers: supabaseHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        password_hash: user.passwordHash,
+        phone: user.phone,
+        role: user.role,
+        created_at: user.createdAt,
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to insert user to Supabase:", err);
+  }
+}
+
+export async function insertOrderToSupabase(order: PurchaseOrderItem): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+      method: "POST",
+      headers: supabaseHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({
+        id: order.id,
+        pnr: order.pnr,
+        user_id: order.userId,
+        user_email: order.userEmail,
+        customer_name: order.customerName,
+        customer_phone: order.customerPhone,
+        flight_code: order.flightCode,
+        airline: order.airline,
+        origin: order.origin,
+        destination: order.destination,
+        departure_date: order.departureDate,
+        return_date: order.returnDate || null,
+        passengers_summary: order.passengersSummary,
+        sing_total_price: order.singTotalPrice,
+        airline_direct_reference_price: order.airlineDirectReferencePrice,
+        savings_amount: order.savingsAmount,
+        payment_method: order.paymentMethod,
+        status: order.status,
+        created_at: order.createdAt,
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to insert order to Supabase:", err);
+  }
+}
+
+export async function logExternalApiTestToSupabase(params: {
+  providerName: string;
+  endpoint: string;
+  requestPayload: unknown;
+  responsePayload: unknown;
+  httpStatus?: number;
+  latencyMs?: number;
+  notes?: string;
+}): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/external_api_logs`, {
+      method: "POST",
+      headers: supabaseHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({
+        provider_name: params.providerName,
+        endpoint: params.endpoint,
+        request_payload: params.requestPayload ?? {},
+        response_payload: params.responsePayload ?? {},
+        http_status: params.httpStatus ?? 200,
+        latency_ms: params.latencyMs ?? 0,
+        notes: params.notes ?? null,
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to log external API call to Supabase:", err);
   }
 }

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb } from "@/lib/db";
+import {
+  fetchDatabaseFromSupabase,
+  savePricingToSupabase,
+  writeDb,
+} from "@/lib/db";
 
 export async function GET() {
-  const db = readDb();
+  const db = await fetchDatabaseFromSupabase();
   return NextResponse.json({
     pricingConfig: db.pricingConfig,
     stats: {
@@ -16,7 +20,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const db = readDb();
+    const db = await fetchDatabaseFromSupabase();
 
     db.pricingConfig = {
       profitShareOnSavingsPercent: Number(
@@ -59,7 +63,9 @@ export async function PUT(request: Request) {
       updatedAt: new Date().toISOString(),
     };
 
+    await savePricingToSupabase(db.pricingConfig);
     writeDb(db);
+
     return NextResponse.json({
       success: true,
       pricingConfig: db.pricingConfig,

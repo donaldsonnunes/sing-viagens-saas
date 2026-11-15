@@ -9,8 +9,15 @@
   - Renderização híbrida (SSR/SSG) para SEO máximo nas páginas de conversão, Landing Pages de Serviços e Blog.
   - Rotas de API (`src/app/api/...`) integradas para busca de voos, cálculo de markup, autenticação e persistência de histórico.
 - **Estilização**: **Tailwind CSS** configurado com os tokens oficiais da Sing (`#172C3B`, `#BD9472`, `#E8E2D9`).
-- **Camada de Dados & Persistência**:
-  - Armazenamento estruturado local em JSON/SQLite com camada de repositório tipada (`src/lib/db.ts`), permitindo funcionamento imediato zero-config no ambiente Windows e migração transparente para PostgreSQL/Prisma em produção.
+- **Camada de Dados & Persistência (Supabase PostgreSQL `sa-east-1` São Paulo)**:
+  - Projeto oficial criado no Supabase (`sing-viagens-saas`, ref: `lbbjgxvbjbsoaglsccun`, região `sa-east-1` São Paulo).
+  - Tabelas ativas no schema `public` (`supabase/migrations/20261114225600_init_sing_viagens_schema.sql`):
+    - `pricing_rules`: Regras do Admin (valor do milheiro por Cia Aérea + percentual de lucro sobre a diferença/spread).
+    - `users`: Contas de clientes e administradores.
+    - `search_history`: Histórico de pesquisas de passagens aéreas em tempo real.
+    - `orders`: Pedidos e emissões geradas no checkout (`PNR`).
+    - `external_api_logs`: Auditoria e gravação de payloads, status HTTP e latência (`ms`) para avaliação e testes de APIs externas de voos e milhas.
+  - Camada de repositório híbrida (`src/lib/db.ts`) integrada via REST ao Supabase com fallback local resiliente.
 
 ---
 

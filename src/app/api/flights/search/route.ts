@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb } from "@/lib/db";
+import {
+  fetchDatabaseFromSupabase,
+  insertSearchHistoryToSupabase,
+  logExternalApiTestToSupabase,
+  writeDb,
+} from "@/lib/db";
 import { searchAndCompareFlights, FlightSearchParams } from "@/lib/flightEngine";
 
 export async function POST(request: Request) {
+  const startMs = Date.now();
   try {
     const body = await request.json();
-    const db = readDb();
+    const db = await fetchDatabaseFromSupabase();
 
     const searchParams: FlightSearchParams = {
       origin: body.origin || "GRU",
@@ -34,7 +40,7 @@ export async function POST(request: Request) {
         )
       );
 
-      db.searchHistory.unshift({
+      const newHistoryItem = {
         id: `sch-${Date.now()}`,
         userId: body.userId || "usr-demo-1",
         userEmail: body.userEmail || "cliente@singviagens.com.br",
@@ -49,9 +55,28 @@ export async function POST(request: Request) {
         lowestSingPrice,
         lowestAirlineDirectPrice,
         createdAt: new Date().toISOString(),
-      });
+      };
 
+      db.searchHistory.unshift(newHistoryItem);
       db.searchHistory = db.searchHistory.slice(0, 30);
+
+      await Promise.all([
+        insertSearchHistoryToSupabase(newHistoryItem),
+        logExternalApiTestToSupabase({
+          providerName: "SING_MILES_PRICING_ENGINE",
+          endpoint: "/api/flights/search",
+          requestPayload: searchParams,
+          responsePayload: {
+            offersCount: offers.length,
+            lowestSingPrice,
+            lowestAirlineDirectPrice,
+          },
+          httpStatus: 200,
+          latencyMs: Date.now() - startMs,
+          notes: `Busca ${searchParams.origin} -> ${searchParams.destination} (${searchParams.adults} adt)`,
+        }),
+      ]);
+
       writeDb(db);
     }
 
