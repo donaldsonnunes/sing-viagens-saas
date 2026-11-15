@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TicketVoucherModal } from "@/components/TicketVoucherModal";
+import { MonthlyComparisonChart } from "@/components/MonthlyComparisonChart";
 import {
   isValidCpf,
   validatePassportWithExpiry,
@@ -1163,6 +1164,8 @@ export default function ContaPage() {
                   </div>
                 </div>
               </div>
+
+              <MonthlyComparisonChart orders={orders} />
             </div>
           </div>
 
