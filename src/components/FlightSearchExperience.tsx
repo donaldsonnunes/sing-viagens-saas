@@ -865,6 +865,129 @@ export function FlightSearchExperience({
         </div>
       </div>
 
+      {/* PAINEL DE OTIMIZAÇÃO & FAIXA DE 7 DIAS (3 ANTES • SUA DATA • 3 DEPOIS) */}
+      {(telemetry || preSearchCalendar.length > 0) && (
+        <div className="rounded-2xl bg-white border border-zinc-200/90 shadow-sm p-4 sm:p-5 space-y-4">
+          {telemetry && (
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`font-mono text-[11px] font-bold px-2.5 py-1 rounded-lg ${
+                    telemetry.cacheHit
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      : "bg-[#172C3B] text-[#E8E2D9]"
+                  }`}
+                >
+                  {telemetry.cacheHit
+                    ? `CACHE ATIVO 50m (0 CRÉDITOS GASTOS • VÁLIDO P/ RESERVA)`
+                    : `APIVIAGENS (${telemetry.creditsConsumedThisCall} CRÉD. USADOS / ${telemetry.creditsSavedThisCall} POUPADOS)`}
+                </span>
+                <span className="text-xs text-zinc-600">
+                  Consultados:{" "}
+                  <strong className="text-[#09090B] uppercase font-mono">
+                    {telemetry.queriedProviders?.join(", ")}
+                  </strong>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-zinc-500 uppercase mr-1">
+                  Modo:
+                </span>
+                {(
+                  [
+                    { id: "CASH_FIRST", label: "1 Créd. (Tarifado)" },
+                    { id: "SMART_ECONOMY", label: "Smart (Top 3)" },
+                    { id: "ALL_ELIGIBLE", label: "Completo" },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setSearchStrategy(m.id);
+                      executeFlightSearch(true, undefined, m.id);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${
+                      searchStrategy === m.id
+                        ? "bg-[#09090B] text-[#BD9472]"
+                        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {preSearchCalendar.length > 0 && (
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-500">
+                <span className="font-semibold text-[#172C3B]">
+                  Melhores tarifas na janela de 7 dias (3 antes e 3 depois da sua data):
+                </span>
+                {telemetry && (
+                  <span className="font-mono text-emerald-700 font-bold">
+                    Economia na Sessão: {telemetry.totalSessionCreditsSaved} créd. (R${" "}
+                    {((telemetry.totalSessionCreditsSaved || 0) * 0.01)
+                      .toFixed(2)
+                      .replace(".", ",")}
+                    )
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
+                {preSearchCalendar.map((day: any) => {
+                  const [, mm, dd] = String(day.date).split("-");
+                  const formattedBrDate = dd && mm ? `${dd}/${mm}` : day.date.slice(5);
+                  return (
+                    <button
+                      key={day.date}
+                      type="button"
+                      onClick={() => {
+                        setDepartureDate(day.date);
+                        executeFlightSearch(true, day.date);
+                      }}
+                      className={`relative p-2.5 rounded-xl border text-left transition ${
+                        day.isSelectedDate
+                          ? "bg-[#09090B] text-white border-[#BD9472] ring-2 ring-[#BD9472]/40 shadow-md"
+                          : day.isCheapestInWindow
+                          ? "bg-emerald-50/80 border-emerald-400 hover:bg-emerald-100/80 text-[#09090B]"
+                          : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-[#09090B]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px] opacity-85 font-mono">
+                        <span>{day.dayOfWeekLabel}</span>
+                        <span>{formattedBrDate}</span>
+                      </div>
+                      <div className="font-mono text-xs sm:text-sm font-bold mt-1">
+                        {formatBRL(day.estimatedLowestSingBRL)}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-1">
+                        {day.isSelectedDate ? (
+                          <span className="text-[10px] font-bold text-[#BD9472] truncate">
+                            {day.isCheapestInWindow ? "Sua data • ★ Menor" : "Sua data"}
+                          </span>
+                        ) : day.isCheapestInWindow ? (
+                          <span className="text-[10px] font-bold text-emerald-700 truncate">
+                            ★ Mais barata
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium text-zinc-500 truncate">
+                            ~{(day.estimatedLowestMiles / 1000).toFixed(1)}k mi
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* LISTA DE VOOS & RESUMO LATERAL (IDA E VOLTA + BAGAGENS) */}
       {offers.length > 0 && (
         <div className="space-y-4">
