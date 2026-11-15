@@ -4,6 +4,13 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.4.4] — 2026-11-14
+### Corrigido (Alinhamento e Contenção da Barra de Navegação Superior)
+- **Ajuste de Espaçamento e Remoção de Botão Duplicado na Navbar (`src/components/Navbar.tsx`)**:
+  - Unificado o link repetido (*"Buscar Passagens"* / *"Pesquisar Voos"*) no botão principal em cobre à direita (**"Buscar Passagens"**) e compactado o rótulo de *"Passagens para Shows & Destinos"* para **"Shows & Destinos"**, garantindo que todos os itens fiquem 100% contidos dentro da moldura escura do cabeçalho sem transbordar na direita.
+
+---
+
 ## [2.4.2] — 2026-11-14
 ### Adicionado (Ícone Oficial da Página / Favicon Baseado no Logo Sing)
 - **Favicon e Símbolo Vetorial Fiel ao Logo (`src/app/icon.svg`, `public/icon.svg`, `src/app/layout.tsx`, `src/components/Navbar.tsx`)**:
