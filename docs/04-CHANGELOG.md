@@ -4,6 +4,14 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.10.2] — 2026-11-15
+### Adicionado (Visibilidade de Cias Elegíveis Poupadas e Alerta de Hub Azul em `/pesquisa`)
+- **Indicador de Provedores Elegíveis fora do Filtro (`src/components/FlightSearchExperience.tsx`)**:
+  - A barra de telemetria agora exibe os provedores elegíveis da rota que foram poupados pelo modo ativo (`Elegíveis fora do filtro`, ex.: `AZUL` no modo **Smart (Top 3)** ou `LATAM/SMILES/AZUL` no modo **1 Créd. (Tarifado)**), mantendo a economia padrão de créditos.
+  - Quando a busca envolve hubs principais da Azul (`VCP`, `CNF`, `REC`) ou já aparece oferta Azul no tarifado, exibe o destaque **"★ Rota c/ presença forte da Azul"** com o atalho **"Incluir agora"** para consultar o modo completo em 1 clique.
+
+---
+
 ## [2.10.1] — 2026-11-15
 ### Corrigido (Validação de Provedores e `isLiveData` no Cache de Interseção da APIVIAGENS)
 - **Cobertura de Provedores em `isEntryValidForRequest` (`src/lib/apiViagensService.ts`)**:

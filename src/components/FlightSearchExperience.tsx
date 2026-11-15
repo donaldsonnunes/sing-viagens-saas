@@ -888,6 +888,48 @@ export function FlightSearchExperience({
                     {telemetry.queriedProviders?.join(", ")}
                   </strong>
                 </span>
+                {(() => {
+                  const eligibleSkipped = (telemetry.skippedProviders || []).filter(
+                    (s: any) => String(s.reason || "").startsWith("Poupado pelo")
+                  );
+                  if (eligibleSkipped.length === 0) return null;
+                  const azulHubs = ["VCP", "CNF", "REC"];
+                  const isAzulHubRoute =
+                    azulHubs.includes(originIata) || azulHubs.includes(destinationIata);
+                  const hasAzulCashOffer = offers.some(
+                    (o) => o.operatingAirlineCode === "AZUL"
+                  );
+                  return (
+                    <span className="inline-flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                      <span>| Elegíveis fora do filtro:</span>
+                      {eligibleSkipped.map((s: any) => (
+                        <span
+                          key={s.provider}
+                          title={s.reason}
+                          className="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700 font-mono uppercase font-semibold border border-zinc-200"
+                        >
+                          {s.provider}
+                        </span>
+                      ))}
+                      {(isAzulHubRoute || hasAzulCashOffer) &&
+                        eligibleSkipped.some((s: any) => s.provider === "azul") && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+                            ★ Rota c/ presença forte da Azul
+                          </span>
+                        )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchStrategy("ALL_ELIGIBLE");
+                          executeFlightSearch(true, undefined, "ALL_ELIGIBLE");
+                        }}
+                        className="text-[11px] font-semibold text-[#172C3B] underline hover:text-[#BD9472] transition"
+                      >
+                        Incluir agora
+                      </button>
+                    </span>
+                  );
+                })()}
               </div>
 
               <div className="flex items-center gap-1.5">
