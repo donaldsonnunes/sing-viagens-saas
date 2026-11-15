@@ -587,7 +587,7 @@ export default function ContaPage() {
   };
 
   return (
-    <div className="bg-[#FAF8F5] min-h-screen pb-20">
+    <div className="bg-[#F5F5F7] text-[#1D1D1F] min-h-screen pb-20">
       <section className="bg-[#172C3B] text-[#E8E2D9] py-12 border-b border-[#BD9472]/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

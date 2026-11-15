@@ -74,6 +74,8 @@ export default function CheckoutPage() {
 
   const [paymentMethod, setPaymentMethod] = useState<"PIX" | "CREDIT_CARD">("PIX");
   const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
+  const [paymentIntent, setPaymentIntent] = useState<any>(null);
+  const [copiedPix, setCopiedPix] = useState(false);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
@@ -500,6 +502,7 @@ export default function CheckoutPage() {
         }`,
         passengersDetails: normalizedPassengers,
         singTotalPrice: baseFlightPrice,
+        checkoutTotalWithBaggage: baseFlightPrice + baggageExtraTotal,
         airlineDirectReferencePrice: baseAirlineRef,
         savingsAmount:
           offer?.bestSavingsVsOperatingAirline ??
@@ -523,6 +526,7 @@ export default function CheckoutPage() {
           sessionStorage.removeItem("sing_active_search");
           localStorage.removeItem("sing_selected_checkout");
         }
+        setPaymentIntent(data.paymentIntent || null);
         setConfirmedOrder(data.order);
         setShowAnacConsentModal(false);
       }
@@ -532,7 +536,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="bg-[#FAF8F5] min-h-screen pb-20">
+    <div className="bg-[#F5F5F7] text-[#1D1D1F] min-h-screen pb-20">
       <section className="bg-[#172C3B] text-[#E8E2D9] py-12 border-b border-[#BD9472]/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#BD9472]">
@@ -593,7 +597,9 @@ export default function CheckoutPage() {
             <div className="rounded-2xl bg-white border border-emerald-300 p-8 text-center space-y-5 shadow-lg">
               <CheckCircle2 className="w-14 h-14 text-emerald-600 mx-auto" />
               <h2 className="text-2xl sm:text-3xl font-extrabold text-[#172C3B]">
-                Passagem Emitida! Localizador Oficial: {confirmedOrder.pnr}
+                {paymentIntent?.status === "PENDING"
+                  ? `Pedido Registrado! Localizador: ${confirmedOrder.pnr}`
+                  : `Passagem Emitida! Localizador Oficial: ${confirmedOrder.pnr}`}
               </h2>
               <p className="text-sm text-gray-600 max-w-xl mx-auto">
                 Os dados de todos os passageiros foram registrados no banco de dados da Sing Viagens ({confirmedOrder.userEmail}) e atualizados na sua lista de Passageiros Frequentes. Você economizou{" "}
@@ -602,6 +608,73 @@ export default function CheckoutPage() {
                 </strong>{" "}
                 em relação à compra direta na companhia aérea.
               </p>
+
+              {paymentIntent && (paymentIntent.pixQrCode || paymentIntent.checkoutUrl) && (
+                <div className="max-w-lg mx-auto rounded-2xl bg-[#F5F5F7] border border-gray-200 p-5 text-left space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-[#172C3B]">
+                      {paymentIntent.pixQrCode ? "Pagamento via PIX" : "Pagamento via Cartão"}
+                    </span>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600">
+                      {paymentIntent.mode === "PRODUCTION"
+                        ? paymentIntent.status === "PENDING"
+                          ? "Aguardando Confirmação"
+                          : "Confirmado"
+                        : "Modo Demonstração"}
+                    </span>
+                  </div>
+
+                  {paymentIntent.pixQrCodeBase64 && (
+                    <div className="flex justify-center py-2">
+                      <img
+                        src={`data:image/png;base64,${paymentIntent.pixQrCodeBase64}`}
+                        alt="QR Code PIX"
+                        className="w-44 h-44 rounded-xl border border-gray-200 bg-white p-2"
+                      />
+                    </div>
+                  )}
+
+                  {paymentIntent.pixQrCode && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-600">
+                        Copie o código PIX Copia e Cola abaixo e pague no aplicativo do seu banco:
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={paymentIntent.pixQrCode}
+                          className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-700"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(paymentIntent.pixQrCode);
+                            setCopiedPix(true);
+                            setTimeout(() => setCopiedPix(false), 2500);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-[#172C3B] text-white text-xs font-bold hover:bg-[#BD9472] hover:text-[#0E1B24] transition whitespace-nowrap"
+                        >
+                          {copiedPix ? "Copiado!" : "Copiar PIX"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentIntent.checkoutUrl && (
+                    <div className="pt-1">
+                      <a
+                        href={paymentIntent.checkoutUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#009EE3] text-white font-extrabold text-xs sm:text-sm hover:opacity-90 transition shadow"
+                      >
+                        Pagar com Cartão no Mercado Pago
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex flex-wrap justify-center gap-3 pt-2">
                 <button
                   type="button"

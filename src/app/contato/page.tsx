@@ -12,7 +12,7 @@ export default function ContatoPage() {
   };
 
   return (
-    <div className="bg-[#FAF8F5] min-h-screen pb-20">
+    <div className="bg-[#F5F5F7] text-[#1D1D1F] min-h-screen pb-20">
       <section className="bg-[#172C3B] text-[#E8E2D9] py-16 border-b border-[#BD9472]/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#BD9472]">
@@ -62,7 +62,7 @@ export default function ContatoPage() {
 
         {/* Formulário de Orçamento */}
         <div className="lg:col-span-7">
-          <div className="rounded-2xl bg-white border border-gray-200 p-8 shadow-sm">
+          <div className="rounded-[24px] macos-card p-8">
             {submitted ? (
               <div className="py-12 text-center space-y-4">
                 <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />

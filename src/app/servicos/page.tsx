@@ -5,7 +5,7 @@ import { ArrowRight, CheckCircle2, Sparkles, PhoneCall } from "lucide-react";
 
 export default function ServicosOverviewPage() {
   return (
-    <div className="bg-[#FAF8F5] min-h-screen pb-20">
+    <div className="bg-[#F5F5F7] text-[#1D1D1F] min-h-screen pb-20">
       {/* Header */}
       <section className="bg-[#172C3B] text-[#E8E2D9] py-16 border-b border-[#BD9472]/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">

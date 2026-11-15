@@ -19,6 +19,7 @@ import {
   validatePassportWithExpiry,
 } from "@/lib/documentValidation";
 import { bookAirfareOnApiViagens } from "@/lib/apiViagensService";
+import { createPaymentIntent } from "@/lib/paymentGateway";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -874,8 +875,45 @@ export async function POST(request: Request) {
         body.milesCostTotal ?? Math.max(0, singTotalPrice - singProfitAmount)
       );
 
+      const orderId = `ord-${Date.now()}`;
+      const paymentMethod = (body.paymentMethod || "PIX") as
+        | "PIX"
+        | "CREDIT_CARD"
+        | "CORPORATE_INVOICE";
+      const totalChargeAmount = Number(
+        body.checkoutTotalWithBaggage ?? singTotalPrice
+      );
+
+      let paymentIntent = null;
+      try {
+        paymentIntent = await createPaymentIntent({
+          orderId,
+          pnr,
+          amount: totalChargeAmount,
+          description: `Sing Viagens ${body.origin || "GRU"}-${body.destination || "GIG"} (${pnr})`,
+          payerEmail: userEmail,
+          payerName: body.customerName || "Cliente VIP Sing",
+          payerCpf: body.payerCpf || "",
+          paymentMethod,
+        });
+      } catch (payErr) {
+        console.error("[CREATE_ORDER] Payment gateway error:", payErr);
+        return NextResponse.json(
+          {
+            error:
+              payErr instanceof Error
+                ? payErr.message
+                : "Falha ao iniciar cobrança no gateway de pagamento.",
+          },
+          { status: 502 }
+        );
+      }
+
+      const initialStatus =
+        paymentIntent.status === "APPROVED" ? "CONFIRMADO" : "EM_EMISSAO";
+
       const newOrder = {
-        id: `ord-${Date.now()}`,
+        id: orderId,
         pnr,
         userId: body.userId || "usr-demo-1",
         userEmail,
@@ -895,8 +933,8 @@ export async function POST(request: Request) {
         savingsAmount,
         milesCostTotal,
         singProfitAmount,
-        paymentMethod: body.paymentMethod || "PIX",
-        status: "CONFIRMADO" as const,
+        paymentMethod,
+        status: initialStatus as "CONFIRMADO" | "EM_EMISSAO",
         createdAt: new Date().toISOString(),
       };
       db.orders.unshift(newOrder);
@@ -907,6 +945,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         order: newOrder,
+        paymentIntent,
         frequentPassengers: updatedFrequentPassengers,
       });
     }

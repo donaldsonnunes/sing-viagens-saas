@@ -4,7 +4,7 @@ import { ShieldCheck, Sparkles, Music, Plane, ArrowRight } from "lucide-react";
 
 export default function SobrePage() {
   return (
-    <div className="bg-[#FAFAFA] min-h-screen pb-20 text-[#09090B]">
+    <div className="bg-[#F5F5F7] text-[#1D1D1F] min-h-screen pb-20">
       {/* Hero Institucional */}
       <section className="bg-[#09090B] text-white pt-24 pb-16 -mt-20 border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">

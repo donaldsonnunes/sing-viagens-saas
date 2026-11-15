@@ -20,13 +20,179 @@ interface MonitorTarget {
   alertsCount: number;
 }
 
+interface CrawlerObservationInput {
+  originIata: string;
+  destinationIata: string;
+  targetDepartureDate?: string;
+  lowestPrice: number;
+  source?: string;
+}
+
+async function runAlertSweep(
+  mode: "CACHE_SWEEP" | "CRAWLER_REPORT",
+  crawlerResults: CrawlerObservationInput[] = []
+) {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const nowIso = new Date().toISOString();
+
+  const alertsRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/price_alerts?select=*&status=neq.CONVERTIDO&limit=200`,
+    {
+      headers: supabaseHeaders(),
+      cache: "no-store",
+    }
+  );
+  const alertRows: any[] = alertsRes.ok ? await alertsRes.json() : [];
+  const activeAlerts = Array.isArray(alertRows)
+    ? alertRows.filter((r) => {
+        const dep = String(r.target_departure_date || "").trim();
+        return !dep || dep >= todayIso;
+      })
+    : [];
+
+  const observations: Array<{
+    originIata: string;
+    destinationIata: string;
+    targetDepartureDate: string;
+    lowestPrice: number;
+    source: string;
+  }> = [];
+
+  if (mode === "CACHE_SWEEP") {
+    const db = await fetchDatabaseFromSupabase();
+    for (const h of db.searchHistory || []) {
+      const price = Number(h.lowestSingPrice || 0);
+      if (price > 0) {
+        observations.push({
+          originIata: String(h.origin || "").toUpperCase(),
+          destinationIata: String(h.destination || "").toUpperCase(),
+          targetDepartureDate: String(h.departureDate || "").trim(),
+          lowestPrice: price,
+          source: "PORTAL_CACHE",
+        });
+      }
+    }
+  } else {
+    for (const item of crawlerResults) {
+      const price = Number(item.lowestPrice || 0);
+      if (price > 0 && item.originIata && item.destinationIata) {
+        observations.push({
+          originIata: String(item.originIata).toUpperCase(),
+          destinationIata: String(item.destinationIata).toUpperCase(),
+          targetDepartureDate: String(item.targetDepartureDate || "").trim(),
+          lowestPrice: price,
+          source: String(item.source || "CRAWLER").toUpperCase(),
+        });
+      }
+    }
+  }
+
+  let updatedCount = 0;
+  const triggeredAlerts: Array<{
+    id: string;
+    customerName: string;
+    customerWhatsapp: string;
+    customerEmail: string;
+    originIata: string;
+    destinationIata: string;
+    previousLowestPrice: number | null;
+    newLowestPrice: number;
+  }> = [];
+
+  for (const alert of activeAlerts) {
+    const aOrigin = String(alert.origin_iata || "").toUpperCase();
+    const aDest = String(alert.destination_iata || "").toUpperCase();
+    const aDate = String(alert.target_departure_date || "").trim();
+
+    const matching = observations.filter(
+      (obs) =>
+        obs.originIata === aOrigin &&
+        obs.destinationIata === aDest &&
+        (!aDate || !obs.targetDepartureDate || obs.targetDepartureDate === aDate)
+    );
+    if (matching.length === 0) continue;
+
+    const bestObserved = matching.reduce((min, cur) =>
+      cur.lowestPrice < min.lowestPrice ? cur : min
+    );
+
+    const prevLowest =
+      alert.lowest_seen_price !== null && alert.lowest_seen_price !== undefined
+        ? Number(alert.lowest_seen_price)
+        : null;
+    const prevBaseline =
+      alert.baseline_price !== null && alert.baseline_price !== undefined
+        ? Number(alert.baseline_price)
+        : null;
+
+    const nextBaseline = prevBaseline ?? bestObserved.lowestPrice;
+    const nextLowest =
+      prevLowest !== null
+        ? Math.min(prevLowest, bestObserved.lowestPrice)
+        : bestObserved.lowestPrice;
+
+    const dropped =
+      (prevLowest !== null && bestObserved.lowestPrice < prevLowest) ||
+      (prevBaseline !== null && bestObserved.lowestPrice <= prevBaseline * 0.92);
+
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/price_alerts?id=eq.${encodeURIComponent(alert.id)}`,
+      {
+        method: "PATCH",
+        headers: supabaseHeaders({ Prefer: "return=minimal" }),
+        body: JSON.stringify({
+          last_checked_at: nowIso,
+          baseline_price: nextBaseline,
+          lowest_seen_price: nextLowest,
+          last_check_source: bestObserved.source,
+          ...(dropped
+            ? {
+                alert_triggered: true,
+                triggered_at: nowIso,
+              }
+            : {}),
+        }),
+      }
+    );
+
+    updatedCount += 1;
+    if (dropped) {
+      triggeredAlerts.push({
+        id: alert.id,
+        customerName: alert.customer_name,
+        customerWhatsapp: alert.customer_whatsapp,
+        customerEmail: alert.customer_email || "",
+        originIata: aOrigin,
+        destinationIata: aDest,
+        previousLowestPrice: prevLowest,
+        newLowestPrice: bestObserved.lowestPrice,
+      });
+    }
+  }
+
+  return {
+    success: true,
+    mode,
+    checkedAt: nowIso,
+    activeAlertsCount: activeAlerts.length,
+    updatedCount,
+    triggeredAlerts,
+  };
+}
+
 /**
  * GET /api/alerts/monitor
- * Lista os alertas ativos (até a data prevista do voo) deduplicados por rota + data
- * para que um crawler diário ou rotina de cache consulte cada trecho apenas 1x por dia.
+ * - Sem ?run=cache_sweep: lista os alertas ativos deduplicados por rota + data para o crawler diário.
+ * - Com ?run=cache_sweep (Vercel Cron): executa a varredura gratuita com base no cache do portal.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    if (url.searchParams.get("run") === "cache_sweep") {
+      const result = await runAlertSweep("CACHE_SWEEP");
+      return NextResponse.json(result);
+    }
+
     const todayIso = new Date().toISOString().slice(0, 10);
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/price_alerts?select=*&status=neq.CONVERTIDO&order=created_at.desc&limit=200`,
@@ -97,152 +263,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const mode = body.mode === "CRAWLER_REPORT" ? "CRAWLER_REPORT" : "CACHE_SWEEP";
-    const todayIso = new Date().toISOString().slice(0, 10);
-    const nowIso = new Date().toISOString();
-
-    const alertsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/price_alerts?select=*&status=neq.CONVERTIDO&limit=200`,
-      {
-        headers: supabaseHeaders(),
-        cache: "no-store",
-      }
-    );
-    const alertRows: any[] = alertsRes.ok ? await alertsRes.json() : [];
-    const activeAlerts = Array.isArray(alertRows)
-      ? alertRows.filter((r) => {
-          const dep = String(r.target_departure_date || "").trim();
-          return !dep || dep >= todayIso;
-        })
-      : [];
-
-    const observations: Array<{
-      originIata: string;
-      destinationIata: string;
-      targetDepartureDate: string;
-      lowestPrice: number;
-      source: string;
-    }> = [];
-
-    if (mode === "CACHE_SWEEP") {
-      const db = await fetchDatabaseFromSupabase();
-      for (const h of db.searchHistory || []) {
-        const price = Number(h.lowestSingPrice || 0);
-        if (price > 0) {
-          observations.push({
-            originIata: String(h.origin || "").toUpperCase(),
-            destinationIata: String(h.destination || "").toUpperCase(),
-            targetDepartureDate: String(h.departureDate || "").trim(),
-            lowestPrice: price,
-            source: "PORTAL_CACHE",
-          });
-        }
-      }
-    } else if (Array.isArray(body.results)) {
-      for (const item of body.results) {
-        const price = Number(item.lowestPrice || 0);
-        if (price > 0 && item.originIata && item.destinationIata) {
-          observations.push({
-            originIata: String(item.originIata).toUpperCase(),
-            destinationIata: String(item.destinationIata).toUpperCase(),
-            targetDepartureDate: String(item.targetDepartureDate || "").trim(),
-            lowestPrice: price,
-            source: String(item.source || "CRAWLER").toUpperCase(),
-          });
-        }
-      }
-    }
-
-    let updatedCount = 0;
-    const triggeredAlerts: Array<{
-      id: string;
-      customerName: string;
-      customerWhatsapp: string;
-      customerEmail: string;
-      originIata: string;
-      destinationIata: string;
-      previousLowestPrice: number | null;
-      newLowestPrice: number;
-    }> = [];
-
-    for (const alert of activeAlerts) {
-      const aOrigin = String(alert.origin_iata || "").toUpperCase();
-      const aDest = String(alert.destination_iata || "").toUpperCase();
-      const aDate = String(alert.target_departure_date || "").trim();
-
-      const matching = observations.filter(
-        (obs) =>
-          obs.originIata === aOrigin &&
-          obs.destinationIata === aDest &&
-          (!aDate || !obs.targetDepartureDate || obs.targetDepartureDate === aDate)
-      );
-      if (matching.length === 0) continue;
-
-      const bestObserved = matching.reduce((min, cur) =>
-        cur.lowestPrice < min.lowestPrice ? cur : min
-      );
-
-      const prevLowest =
-        alert.lowest_seen_price !== null && alert.lowest_seen_price !== undefined
-          ? Number(alert.lowest_seen_price)
-          : null;
-      const prevBaseline =
-        alert.baseline_price !== null && alert.baseline_price !== undefined
-          ? Number(alert.baseline_price)
-          : null;
-
-      const nextBaseline = prevBaseline ?? bestObserved.lowestPrice;
-      const nextLowest =
-        prevLowest !== null
-          ? Math.min(prevLowest, bestObserved.lowestPrice)
-          : bestObserved.lowestPrice;
-
-      const dropped =
-        (prevLowest !== null && bestObserved.lowestPrice < prevLowest) ||
-        (prevBaseline !== null && bestObserved.lowestPrice <= prevBaseline * 0.92);
-
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/price_alerts?id=eq.${encodeURIComponent(alert.id)}`,
-        {
-          method: "PATCH",
-          headers: supabaseHeaders({ Prefer: "return=minimal" }),
-          body: JSON.stringify({
-            last_checked_at: nowIso,
-            baseline_price: nextBaseline,
-            lowest_seen_price: nextLowest,
-            last_check_source: bestObserved.source,
-            ...(dropped
-              ? {
-                  alert_triggered: true,
-                  triggered_at: nowIso,
-                }
-              : {}),
-          }),
-        }
-      );
-
-      updatedCount += 1;
-      if (dropped) {
-        triggeredAlerts.push({
-          id: alert.id,
-          customerName: alert.customer_name,
-          customerWhatsapp: alert.customer_whatsapp,
-          customerEmail: alert.customer_email || "",
-          originIata: aOrigin,
-          destinationIata: aDest,
-          previousLowestPrice: prevLowest,
-          newLowestPrice: bestObserved.lowestPrice,
-        });
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      mode,
-      checkedAt: nowIso,
-      activeAlertsCount: activeAlerts.length,
-      updatedCount,
-      triggeredAlerts,
-    });
+    const results = Array.isArray(body.results) ? body.results : [];
+    const summary = await runAlertSweep(mode, results);
+    return NextResponse.json(summary);
   } catch (err) {
     console.error("Failed to run alert monitor:", err);
     return NextResponse.json(

@@ -43,6 +43,8 @@ export default function AdminPricingPage() {
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [showsList, setShowsList] = useState<any[]>([]);
   const [alertsList, setAlertsList] = useState<any[]>([]);
+  const [runningAlertSweep, setRunningAlertSweep] = useState(false);
+  const [alertSweepMsg, setAlertSweepMsg] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [adminUser, setAdminUser] = useState<any>(null);
@@ -189,6 +191,29 @@ export default function AdminPricingPage() {
       }),
     });
     loadAdminData();
+  };
+
+  const handleRunAlertCacheSweep = async () => {
+    setRunningAlertSweep(true);
+    setAlertSweepMsg("");
+    try {
+      const res = await fetch("/api/alerts/monitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "CACHE_SWEEP" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAlertSweepMsg(
+          `Varredura concluída: ${data.updatedCount || 0} alerta(s) atualizado(s), ${
+            data.triggeredAlerts?.length || 0
+          } com queda de tarifa.`
+        );
+        loadAdminData();
+      }
+    } finally {
+      setRunningAlertSweep(false);
+    }
   };
 
   useEffect(() => {
@@ -1303,10 +1328,26 @@ export default function AdminPricingPage() {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-[#172C3B] text-[#BD9472] font-mono text-xs font-bold">
-                {alertsList.length} leads
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={runningAlertSweep}
+                  onClick={handleRunAlertCacheSweep}
+                  className="px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition"
+                >
+                  {runningAlertSweep ? "Varrendo..." : "Varrer Cache (0 Créd.)"}
+                </button>
+                <span className="px-2.5 py-1 rounded-full bg-[#172C3B] text-[#BD9472] font-mono text-xs font-bold">
+                  {alertsList.length} leads
+                </span>
+              </div>
             </div>
+
+            {alertSweepMsg && (
+              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+                {alertSweepMsg}
+              </div>
+            )}
 
             <div className="space-y-3 max-h-[420px] overflow-y-auto">
               {alertsList.map((al) => {
@@ -1338,9 +1379,21 @@ export default function AdminPricingPage() {
                       </span>
                     </div>
 
-                    <div className="text-zinc-600">
-                      Evento: <strong className="text-[#172C3B]">{al.showOrEventName}</strong> • Data:{" "}
-                      <strong>{al.targetMonthOrDate}</strong>
+                    <div className="text-zinc-600 flex flex-wrap items-center gap-2">
+                      <span>
+                        Evento: <strong className="text-[#172C3B]">{al.showOrEventName}</strong> • Data:{" "}
+                        <strong>{al.targetDepartureDate || al.targetMonthOrDate}</strong>
+                      </span>
+                      {al.lowestSeenPrice && (
+                        <span className="px-2 py-0.5 rounded bg-white border border-zinc-200 font-mono text-[10px] font-bold text-[#172C3B]">
+                          Menor visto: {formatBRL(Number(al.lowestSeenPrice))}
+                        </span>
+                      )}
+                      {al.alertTriggered && (
+                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                          ⚡ Tarifa Baixou
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-200/70">
