@@ -44,6 +44,7 @@ export interface PassengerDetailItem {
   documentCpfOrPassport: string;
   cpf?: string;
   passport?: string;
+  passportExpiry?: string;
   email?: string;
   phone?: string;
   birthDate: string;
@@ -61,6 +62,7 @@ export interface FrequentPassengerItem {
   email?: string;
   phone?: string;
   passport?: string;
+  passportExpiry?: string;
   createdAt: string;
 }
 
@@ -126,6 +128,7 @@ export interface UserAccount {
   birthDate?: string;
   cpf?: string;
   passport?: string;
+  passportExpiry?: string;
   email: string;
   passwordHash: string;
   phone: string;
@@ -376,6 +379,7 @@ export async function fetchDatabaseFromSupabase(): Promise<DatabaseSchema> {
             birthDate: u.birth_date || "",
             cpf: u.cpf || "",
             passport: u.passport || "",
+            passportExpiry: u.passport_expiry || "",
             email: u.email,
             passwordHash: u.password_hash,
             phone: u.phone || "",
@@ -525,6 +529,7 @@ export async function insertUserToSupabase(user: UserAccount): Promise<void> {
         birth_date: user.birthDate || "",
         cpf: user.cpf || "",
         passport: user.passport || "",
+        passport_expiry: user.passportExpiry || "",
         email: user.email,
         password_hash: user.passwordHash,
         phone: user.phone,
@@ -641,6 +646,7 @@ export const DEFAULT_FREQUENT_PASSENGERS: FrequentPassengerItem[] = [
     email: "donaldson.nunes@gmail.com",
     phone: "(11) 99999-0000",
     passport: "FP892341",
+    passportExpiry: "2032-06-15",
     createdAt: "2026-11-15T05:00:00.000Z",
   },
   {
@@ -653,6 +659,7 @@ export const DEFAULT_FREQUENT_PASSENGERS: FrequentPassengerItem[] = [
     email: "cliente@singviagens.com.br",
     phone: "(11) 98877-6655",
     passport: "",
+    passportExpiry: "",
     createdAt: "2026-11-15T05:00:00.000Z",
   },
 ];
@@ -681,6 +688,7 @@ export async function fetchFrequentPassengersFromSupabase(
       email: r.email || "",
       phone: r.phone || "",
       passport: r.passport || "",
+      passportExpiry: r.passport_expiry || "",
       createdAt: r.created_at,
     }));
     if (userEmail) {
@@ -718,6 +726,7 @@ export async function upsertFrequentPassengerToSupabase(
         email: (pax.email || "").trim(),
         phone: (pax.phone || "").trim(),
         passport: (pax.passport || "").trim(),
+        passport_expiry: (pax.passportExpiry || "").trim(),
         created_at: pax.createdAt || new Date().toISOString(),
       }),
     });

@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TicketVoucherModal } from "@/components/TicketVoucherModal";
 import {
+  isValidCpf,
+  validatePassportWithExpiry,
+} from "@/lib/documentValidation";
+import {
   History,
   ShoppingBag,
   RotateCcw,
@@ -75,6 +79,7 @@ export default function ContaPage() {
   const [regBirthDate, setRegBirthDate] = useState("");
   const [regCpf, setRegCpf] = useState("");
   const [regPassport, setRegPassport] = useState("");
+  const [regPassportExpiry, setRegPassportExpiry] = useState("");
   const [phone, setPhone] = useState("");
   const [authError, setAuthError] = useState("");
   const [loadingAuth, setLoadingAuth] = useState(false);
@@ -99,6 +104,7 @@ export default function ContaPage() {
   const [socialCpf, setSocialCpf] = useState("284.910.378-00");
   const [socialPhone, setSocialPhone] = useState("(11) 99999-0000");
   const [socialPassport, setSocialPassport] = useState("FP892341");
+  const [socialPassportExpiry, setSocialPassportExpiry] = useState("2032-06-15");
 
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -114,8 +120,10 @@ export default function ContaPage() {
   const [paxEmail, setPaxEmail] = useState("");
   const [paxPhone, setPaxPhone] = useState("");
   const [paxPassport, setPaxPassport] = useState("");
+  const [paxPassportExpiry, setPaxPassportExpiry] = useState("");
   const [savingPax, setSavingPax] = useState(false);
   const [paxSuccessMsg, setPaxSuccessMsg] = useState("");
+  const [paxErrorMsg, setPaxErrorMsg] = useState("");
 
   const saveSessionAndNotify = (loggedUser: any) => {
     localStorage.setItem("sing_user", JSON.stringify(loggedUser));
@@ -143,15 +151,30 @@ export default function ContaPage() {
     setPaxEmail("");
     setPaxPhone("");
     setPaxPassport("");
+    setPaxPassportExpiry("");
+    setPaxErrorMsg("");
   };
 
   const handleSaveFrequentPassenger = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPaxErrorMsg("");
+    setPaxSuccessMsg("");
     if (!paxFirstName.trim() || !paxLastName.trim() || !paxBirthDate || !paxCpf.trim()) {
+      setPaxErrorMsg("Preencha Nome, Sobrenome, Data de Nascimento e CPF.");
+      return;
+    }
+    if (!isValidCpf(paxCpf)) {
+      setPaxErrorMsg(
+        "CPF inválido. Informe um CPF válido (para testes, dígitos repetidos como 111.111.111-11 são aceitos)."
+      );
+      return;
+    }
+    const passportCheck = validatePassportWithExpiry(paxPassport, paxPassportExpiry);
+    if (!passportCheck.valid) {
+      setPaxErrorMsg(passportCheck.error || "Data de vencimento do passaporte inválida.");
       return;
     }
     setSavingPax(true);
-    setPaxSuccessMsg("");
     try {
       const targetEmail = user?.email || "donaldson.nunes@gmail.com";
       const res = await fetch("/api/account", {
@@ -168,9 +191,14 @@ export default function ContaPage() {
           email: paxEmail,
           phone: paxPhone,
           passport: paxPassport,
+          passportExpiry: paxPassport.trim() ? paxPassportExpiry : "",
         }),
       });
       const data = await res.json();
+      if (!res.ok || data.error) {
+        setPaxErrorMsg(data.error || "Não foi possível salvar o passageiro.");
+        return;
+      }
       if (data.frequentPassengers) {
         setFrequentPassengers(data.frequentPassengers);
         resetPaxForm();
@@ -195,6 +223,8 @@ export default function ContaPage() {
     setPaxEmail(pax.email || "");
     setPaxPhone(pax.phone || "");
     setPaxPassport(pax.passport || "");
+    setPaxPassportExpiry(pax.passportExpiry || "");
+    setPaxErrorMsg("");
   };
 
   const handleDeletePassenger = async (passengerId: string) => {
@@ -296,6 +326,24 @@ export default function ContaPage() {
     e.preventDefault();
     setAuthError("");
     setVerificationNotice("");
+    if (authMode === "REGISTER") {
+      if (!isValidCpf(regCpf)) {
+        setAuthError(
+          "CPF inválido. Informe um CPF válido (para testes internos, dígitos repetidos como 111.111.111-11 são aceitos)."
+        );
+        return;
+      }
+      const passportCheck = validatePassportWithExpiry(
+        regPassport,
+        regPassportExpiry
+      );
+      if (!passportCheck.valid) {
+        setAuthError(
+          passportCheck.error || "Informe a data de vencimento do passaporte."
+        );
+        return;
+      }
+    }
     setLoadingAuth(true);
     try {
       const res = await fetch("/api/account", {
@@ -311,6 +359,7 @@ export default function ContaPage() {
           birthDate: regBirthDate,
           cpf: regCpf,
           passport: regPassport,
+          passportExpiry: regPassport.trim() ? regPassportExpiry : "",
           phone,
         }),
       });
@@ -403,9 +452,26 @@ export default function ContaPage() {
     targetBirthDate?: string,
     targetCpf?: string,
     targetPhone?: string,
-    targetPassport?: string
+    targetPassport?: string,
+    targetPassportExpiry?: string
   ) => {
     setAuthError("");
+    if (targetCpf && !isValidCpf(targetCpf)) {
+      setAuthError(
+        "CPF inválido. Informe um CPF válido (para testes internos, dígitos repetidos são aceitos)."
+      );
+      return;
+    }
+    const socialPassportCheck = validatePassportWithExpiry(
+      targetPassport,
+      targetPassportExpiry
+    );
+    if (!socialPassportCheck.valid) {
+      setAuthError(
+        socialPassportCheck.error || "Informe a data de vencimento do passaporte."
+      );
+      return;
+    }
     setLoadingAuth(true);
     try {
       const res = await fetch("/api/account", {
@@ -422,6 +488,7 @@ export default function ContaPage() {
           cpf: targetCpf || "",
           phone: targetPhone || "",
           passport: targetPassport || "",
+          passportExpiry: targetPassport?.trim() ? targetPassportExpiry || "" : "",
         }),
       });
       const data = await res.json();
@@ -863,13 +930,30 @@ export default function ContaPage() {
                         <input
                           type="text"
                           value={regPassport}
-                          onChange={(e) =>
-                            setRegPassport(e.target.value.toUpperCase())
-                          }
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase();
+                            setRegPassport(val);
+                            if (!val.trim()) setRegPassportExpiry("");
+                          }}
                           placeholder="Ex: FP123456"
                           className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-[#09090B]"
                         />
                       </div>
+
+                      {regPassport.trim() !== "" && (
+                        <div className="sm:col-span-2">
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                            Data de Vencimento do Passaporte *
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={regPassportExpiry}
+                            onChange={(e) => setRegPassportExpiry(e.target.value)}
+                            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1210,11 +1294,30 @@ export default function ContaPage() {
                   <input
                     type="text"
                     value={paxPassport}
-                    onChange={(e) => setPaxPassport(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setPaxPassport(val);
+                      if (!val.trim()) setPaxPassportExpiry("");
+                    }}
                     placeholder="Ex: FP123456"
                     className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-[#09090B]"
                   />
                 </div>
+
+                {paxPassport.trim() !== "" && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                      Vencimento do Passaporte *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={paxPassportExpiry}
+                      onChange={(e) => setPaxPassportExpiry(e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
+                    />
+                  </div>
+                )}
 
                 <div className="flex items-end">
                   <button
@@ -1230,6 +1333,12 @@ export default function ContaPage() {
                   </button>
                 </div>
               </div>
+
+              {paxErrorMsg && (
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+                  {paxErrorMsg}
+                </div>
+              )}
 
               {paxSuccessMsg && (
                 <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
@@ -1258,6 +1367,7 @@ export default function ContaPage() {
                       {pax.passport && (
                         <span className="px-2 py-0.5 rounded bg-[#172C3B]/10 text-[#172C3B] font-bold">
                           Passaporte: {pax.passport}
+                          {pax.passportExpiry ? ` (Venc: ${pax.passportExpiry})` : ""}
                         </span>
                       )}
                     </div>
@@ -1598,7 +1708,8 @@ export default function ContaPage() {
                   socialBirthDate,
                   socialCpf,
                   socialPhone,
-                  socialPassport
+                  socialPassport,
+                  socialPassportExpiry
                 );
               }}
               className="space-y-2.5 pt-2 border-t border-gray-100"
@@ -1649,11 +1760,29 @@ export default function ContaPage() {
                 <input
                   type="text"
                   value={socialPassport}
-                  onChange={(e) => setSocialPassport(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    setSocialPassport(val);
+                    if (!val.trim()) setSocialPassportExpiry("");
+                  }}
                   placeholder="Passaporte (opcional)"
                   className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs font-mono text-[#09090B]"
                 />
               </div>
+              {socialPassport.trim() !== "" && (
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    Data de Vencimento do Passaporte *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={socialPassportExpiry}
+                    onChange={(e) => setSocialPassportExpiry(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
+                  />
+                </div>
+              )}
               <input
                 type="email"
                 required

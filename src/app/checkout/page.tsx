@@ -4,6 +4,10 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { TicketVoucherModal } from "@/components/TicketVoucherModal";
 import {
+  isValidCpf,
+  validatePassportWithExpiry,
+} from "@/lib/documentValidation";
+import {
   CheckCircle2,
   Calendar,
   Plane,
@@ -24,6 +28,7 @@ interface PassengerFormRow {
   email: string;
   phone: string;
   passport: string;
+  passportExpiry: string;
   saveAsFrequentPassenger: boolean;
   fullName: string;
   documentCpfOrPassport: string;
@@ -57,6 +62,7 @@ export default function CheckoutPage() {
       email: "",
       phone: "",
       passport: "",
+      passportExpiry: "",
       saveAsFrequentPassenger: true,
       fullName: "",
       documentCpfOrPassport: "",
@@ -67,6 +73,7 @@ export default function CheckoutPage() {
   const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   const loadFrequentPassengersForEmail = async (
     targetEmail: string,
@@ -99,6 +106,7 @@ export default function CheckoutPage() {
           email: firstSaved.email || "",
           phone: firstSaved.phone || "",
           passport: firstSaved.passport || "",
+          passportExpiry: firstSaved.passportExpiry || "",
           saveAsFrequentPassenger: true,
           fullName: `${firstSaved.firstName || ""} ${
             firstSaved.lastName || ""
@@ -172,6 +180,7 @@ export default function CheckoutPage() {
           email: defaultEmail,
           phone: defaultPhone,
           passport: "",
+          passportExpiry: "",
           saveAsFrequentPassenger: true,
           fullName: `${defaultFirst} ${defaultLast}`.trim(),
           documentCpfOrPassport: defaultCpf,
@@ -206,6 +215,7 @@ export default function CheckoutPage() {
               email: i === 0 ? defaultEmail : "",
               phone: i === 0 ? defaultPhone : "",
               passport: "",
+              passportExpiry: "",
               saveAsFrequentPassenger: true,
               fullName: i === 0 ? `${defaultFirst} ${defaultLast}`.trim() : "",
               documentCpfOrPassport: i === 0 ? defaultCpf : "",
@@ -225,6 +235,7 @@ export default function CheckoutPage() {
               email: "",
               phone: "",
               passport: "",
+              passportExpiry: "",
               saveAsFrequentPassenger: true,
               fullName: "",
               documentCpfOrPassport: "",
@@ -264,6 +275,7 @@ export default function CheckoutPage() {
         email: "",
         phone: "",
         passport: "",
+        passportExpiry: "",
         saveAsFrequentPassenger: true,
         fullName: "",
         documentCpfOrPassport: "",
@@ -284,6 +296,7 @@ export default function CheckoutPage() {
         email: found.email || "",
         phone: found.phone || "",
         passport: found.passport || "",
+        passportExpiry: found.passportExpiry || "",
         saveAsFrequentPassenger: true,
         fullName: `${found.firstName || ""} ${found.lastName || ""}`.trim(),
         documentCpfOrPassport: found.cpf || found.passport || "",
@@ -319,6 +332,26 @@ export default function CheckoutPage() {
       }));
       return;
     }
+    if (!isValidCpf(pax.cpf)) {
+      setInstantSaveFeedback((prev) => ({
+        ...prev,
+        [idx]:
+          "CPF inválido. Informe um CPF válido (para testes, dígitos repetidos são aceitos).",
+      }));
+      return;
+    }
+    const paxPassportCheck = validatePassportWithExpiry(
+      pax.passport,
+      pax.passportExpiry
+    );
+    if (!paxPassportCheck.valid) {
+      setInstantSaveFeedback((prev) => ({
+        ...prev,
+        [idx]:
+          paxPassportCheck.error || "Informe a data de vencimento do passaporte.",
+      }));
+      return;
+    }
 
     setSavingInstantIdx(idx);
     try {
@@ -336,9 +369,17 @@ export default function CheckoutPage() {
           email: pax.email,
           phone: pax.phone,
           passport: pax.passport,
+          passportExpiry: pax.passport.trim() ? pax.passportExpiry : "",
         }),
       });
       const data = await res.json();
+      if (!res.ok || data.error) {
+        setInstantSaveFeedback((prev) => ({
+          ...prev,
+          [idx]: data.error || "Não foi possível salvar o passageiro.",
+        }));
+        return;
+      }
       if (data.frequentPassengers) {
         setFrequentPassengers(data.frequentPassengers);
       }
@@ -364,6 +405,34 @@ export default function CheckoutPage() {
 
   const handleConfirmPurchase = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCheckoutError("");
+
+    if (!isValidCpf(payerCpf)) {
+      setCheckoutError(
+        "CPF do pagador inválido. Informe um CPF válido (para testes, dígitos repetidos são aceitos)."
+      );
+      return;
+    }
+
+    for (const pax of passengersDetails) {
+      if (!isValidCpf(pax.cpf)) {
+        setCheckoutError(
+          `CPF inválido para ${pax.firstName || pax.typeLabel}. Informe um CPF válido (para testes, dígitos repetidos são aceitos).`
+        );
+        return;
+      }
+      const passportCheck = validatePassportWithExpiry(
+        pax.passport,
+        pax.passportExpiry
+      );
+      if (!passportCheck.valid) {
+        setCheckoutError(
+          `${pax.firstName || pax.typeLabel}: ${passportCheck.error}`
+        );
+        return;
+      }
+    }
+
     const offer = selectedData?.offer;
     const adultsCount = selectedData?.searchParams?.adults || 1;
     const minorsCount = selectedData?.searchParams?.childrenAges?.length || 0;
@@ -408,6 +477,10 @@ export default function CheckoutPage() {
       }),
     });
     const data = await res.json();
+    if (!res.ok || data.error) {
+      setCheckoutError(data.error || "Não foi possível confirmar a emissão.");
+      return;
+    }
     if (data.frequentPassengers) {
       setFrequentPassengers(data.frequentPassengers);
     }
@@ -680,17 +753,38 @@ export default function CheckoutPage() {
                               <input
                                 type="text"
                                 value={pax.passport}
-                                onChange={(e) =>
-                                  updatePassengerField(
-                                    idx,
-                                    "passport",
-                                    e.target.value.toUpperCase()
-                                  )
-                                }
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  updatePassengerField(idx, "passport", val);
+                                  if (!val.trim()) {
+                                    updatePassengerField(idx, "passportExpiry", "");
+                                  }
+                                }}
                                 placeholder="Ex: FP123456"
                                 className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 font-mono text-xs text-[#09090B]"
                               />
                             </div>
+
+                            {pax.passport.trim() !== "" && (
+                              <div className="sm:col-span-6">
+                                <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                                  Data de Vencimento do Passaporte *
+                                </label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={pax.passportExpiry}
+                                  onChange={(e) =>
+                                    updatePassengerField(
+                                      idx,
+                                      "passportExpiry",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
+                                />
+                              </div>
+                            )}
 
                             <div className="sm:col-span-6 flex items-end">
                               <button
@@ -831,6 +925,12 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                   </div>
+
+                  {checkoutError && (
+                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+                      {checkoutError}
+                    </div>
+                  )}
 
                   <button
                     type="submit"

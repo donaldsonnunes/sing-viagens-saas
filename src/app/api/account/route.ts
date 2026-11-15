@@ -14,6 +14,10 @@ import {
   upsertFrequentPassengerToSupabase,
   writeDb,
 } from "@/lib/db";
+import {
+  isValidCpf,
+  validatePassportWithExpiry,
+} from "@/lib/documentValidation";
 import { bookAirfareOnApiViagens } from "@/lib/apiViagensService";
 
 export async function GET(request: Request) {
@@ -71,6 +75,7 @@ export async function GET(request: Request) {
       birthDate: user.birthDate || "",
       cpf: user.cpf || "",
       passport: user.passport || "",
+      passportExpiry: user.passportExpiry || "",
       email: user.email,
       phone: user.phone,
       role: isAdmin ? "ADMIN" : "CUSTOMER",
@@ -128,6 +133,7 @@ export async function POST(request: Request) {
           birthDate: user.birthDate || "",
           cpf: user.cpf || "",
           passport: user.passport || "",
+          passportExpiry: user.passportExpiry || "",
           email: user.email,
           phone: user.phone,
           role,
@@ -158,6 +164,7 @@ export async function POST(request: Request) {
       const passport = String(body.passport || "")
         .trim()
         .toUpperCase();
+      const passportExpiry = String(body.passportExpiry || "").trim();
 
       if (!firstName || !lastName || !birthDate || !cpf) {
         return NextResponse.json(
@@ -165,6 +172,24 @@ export async function POST(request: Request) {
             error:
               "Preencha Nome, Sobrenome, Data de Nascimento e CPF para criar sua conta e cadastrar seu perfil de passageiro.",
           },
+          { status: 400 }
+        );
+      }
+
+      if (!isValidCpf(cpf)) {
+        return NextResponse.json(
+          {
+            error:
+              "CPF inválido. Informe um CPF válido (para testes internos, dígitos repetidos como 111.111.111-11 são aceitos).",
+          },
+          { status: 400 }
+        );
+      }
+
+      const passportCheck = validatePassportWithExpiry(passport, passportExpiry);
+      if (!passportCheck.valid) {
+        return NextResponse.json(
+          { error: passportCheck.error },
           { status: 400 }
         );
       }
@@ -182,6 +207,7 @@ export async function POST(request: Request) {
           existing.birthDate = birthDate;
           existing.cpf = cpf;
           existing.passport = passport;
+          existing.passportExpiry = passport ? passportExpiry : "";
           existing.passwordHash = body.password || existing.passwordHash;
           existing.phone = phone || existing.phone;
           existing.role = "ADMIN";
@@ -197,6 +223,7 @@ export async function POST(request: Request) {
             email: normalizedEmail,
             phone,
             passport,
+            passportExpiry: passport ? passportExpiry : "",
             createdAt: new Date().toISOString(),
           });
           writeDb(db);
@@ -209,6 +236,7 @@ export async function POST(request: Request) {
               birthDate,
               cpf,
               passport,
+              passportExpiry: passport ? passportExpiry : "",
               email: existing.email,
               phone: existing.phone,
               role: "ADMIN",
@@ -283,6 +311,7 @@ export async function POST(request: Request) {
         birthDate,
         cpf,
         passport,
+        passportExpiry: passport ? passportExpiry : "",
         email: normalizedEmail,
         passwordHash: body.password || "123456",
         phone: phone || "",
@@ -306,6 +335,7 @@ export async function POST(request: Request) {
         email: normalizedEmail,
         phone,
         passport,
+        passportExpiry: passport ? passportExpiry : "",
         createdAt: newUser.createdAt,
       });
 
@@ -366,6 +396,7 @@ export async function POST(request: Request) {
           birthDate: targetUser.birthDate || "",
           cpf: targetUser.cpf || "",
           passport: targetUser.passport || "",
+          passportExpiry: targetUser.passportExpiry || "",
           email: targetUser.email,
           phone: targetUser.phone,
           role,
@@ -458,6 +489,27 @@ export async function POST(request: Request) {
       const passport = String(body.passport || "")
         .trim()
         .toUpperCase();
+      const passportExpiry = String(body.passportExpiry || "").trim();
+
+      if (cpf && !isValidCpf(cpf)) {
+        return NextResponse.json(
+          {
+            error:
+              "CPF inválido. Informe um CPF válido (para testes internos, dígitos repetidos como 111.111.111-11 são aceitos).",
+          },
+          { status: 400 }
+        );
+      }
+      const socialPassportCheck = validatePassportWithExpiry(
+        passport,
+        passportExpiry
+      );
+      if (!socialPassportCheck.valid) {
+        return NextResponse.json(
+          { error: socialPassportCheck.error },
+          { status: 400 }
+        );
+      }
 
       const existing = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
       const computedName =
@@ -478,6 +530,9 @@ export async function POST(request: Request) {
             birthDate: birthDate || existing.birthDate || "",
             cpf: cpf || existing.cpf || "",
             passport: passport || existing.passport || "",
+            passportExpiry: passport
+              ? passportExpiry || existing.passportExpiry || ""
+              : existing.passportExpiry || "",
             phone: phone || existing.phone || "",
             role,
             authProvider: provider,
@@ -492,6 +547,7 @@ export async function POST(request: Request) {
             birthDate,
             cpf,
             passport,
+            passportExpiry: passport ? passportExpiry : "",
             email: normalizedEmail,
             passwordHash: "oauth_managed",
             phone: phone || "(11) 99999-0000",
@@ -521,6 +577,7 @@ export async function POST(request: Request) {
           email: normalizedEmail,
           phone,
           passport,
+          passportExpiry: passport ? passportExpiry : "",
           createdAt: matched?.createdAt || new Date().toISOString(),
         });
       }
@@ -536,6 +593,7 @@ export async function POST(request: Request) {
           birthDate: userRecord.birthDate,
           cpf: userRecord.cpf,
           passport: userRecord.passport,
+          passportExpiry: userRecord.passportExpiry || "",
           email: userRecord.email,
           phone: userRecord.phone,
           role: userRecord.role,
@@ -597,6 +655,7 @@ export async function POST(request: Request) {
             birthDate: "",
             cpf: "",
             passport: "",
+            passportExpiry: "",
             email,
             passwordHash: "oauth_managed",
             phone: supaUser.phone || "",
@@ -619,6 +678,7 @@ export async function POST(request: Request) {
           birthDate: syncedUser.birthDate || "",
           cpf: syncedUser.cpf || "",
           passport: syncedUser.passport || "",
+          passportExpiry: syncedUser.passportExpiry || "",
           email: syncedUser.email,
           phone: syncedUser.phone,
           role: syncedUser.role,
@@ -640,6 +700,40 @@ export async function POST(request: Request) {
       )
         ? body.passengersDetails
         : [];
+
+      if (body.payerCpf && !isValidCpf(String(body.payerCpf))) {
+        return NextResponse.json(
+          {
+            error:
+              "CPF do pagador inválido. Informe um CPF válido (para testes internos, dígitos repetidos são aceitos).",
+          },
+          { status: 400 }
+        );
+      }
+
+      for (const pax of passengersDetails) {
+        const cpfCheckVal = (pax.cpf || pax.documentCpfOrPassport || "").trim();
+        if (cpfCheckVal && !isValidCpf(cpfCheckVal)) {
+          return NextResponse.json(
+            {
+              error: `CPF inválido para ${pax.fullName || pax.typeLabel}. Informe um CPF válido (para testes internos, dígitos repetidos são aceitos).`,
+            },
+            { status: 400 }
+          );
+        }
+        const paxPassportCheck = validatePassportWithExpiry(
+          pax.passport,
+          pax.passportExpiry
+        );
+        if (!paxPassportCheck.valid) {
+          return NextResponse.json(
+            {
+              error: `${pax.fullName || pax.typeLabel}: ${paxPassportCheck.error}`,
+            },
+            { status: 400 }
+          );
+        }
+      }
 
       // Salva automaticamente passageiros novos marcados para cadastro na hora nos Passageiros Frequentes
       if (passengersDetails.length > 0) {
@@ -681,6 +775,9 @@ export async function POST(request: Request) {
                 email: pax.email || matchedByIdOrCpf?.email || "",
                 phone: pax.phone || matchedByIdOrCpf?.phone || "",
                 passport: pax.passport || matchedByIdOrCpf?.passport || "",
+                passportExpiry: pax.passport
+                  ? pax.passportExpiry || matchedByIdOrCpf?.passportExpiry || ""
+                  : "",
                 createdAt:
                   matchedByIdOrCpf?.createdAt || new Date().toISOString(),
               };
@@ -825,6 +922,8 @@ export async function POST(request: Request) {
       const lastName = String(body.lastName || "").trim();
       const birthDate = String(body.birthDate || "").trim();
       const cpf = String(body.cpf || "").trim();
+      const passport = String(body.passport || "").trim().toUpperCase();
+      const passportExpiry = String(body.passportExpiry || "").trim();
 
       if (!firstName || !lastName || !birthDate || !cpf) {
         return NextResponse.json(
@@ -832,6 +931,27 @@ export async function POST(request: Request) {
             error:
               "Preencha os campos obrigatórios do passageiro: Nome, Sobrenome, Data de Nascimento e CPF.",
           },
+          { status: 400 }
+        );
+      }
+
+      if (!isValidCpf(cpf)) {
+        return NextResponse.json(
+          {
+            error:
+              "CPF inválido. Informe um CPF válido (para testes internos, dígitos repetidos como 111.111.111-11 são aceitos).",
+          },
+          { status: 400 }
+        );
+      }
+
+      const paxPassportCheck = validatePassportWithExpiry(
+        passport,
+        passportExpiry
+      );
+      if (!paxPassportCheck.valid) {
+        return NextResponse.json(
+          { error: paxPassportCheck.error },
           { status: 400 }
         );
       }
@@ -847,7 +967,8 @@ export async function POST(request: Request) {
         cpf,
         email: String(body.email || "").trim(),
         phone: String(body.phone || "").trim(),
-        passport: String(body.passport || "").trim().toUpperCase(),
+        passport,
+        passportExpiry: passport ? passportExpiry : "",
         createdAt: body.createdAt || new Date().toISOString(),
       };
 

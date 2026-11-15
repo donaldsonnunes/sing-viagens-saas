@@ -158,7 +158,9 @@ export function TicketVoucherModal({ order, onClose }: TicketVoucherModalProps) 
                         : p.fullName;
                     const displayDoc = p.cpf
                       ? p.passport
-                        ? `CPF: ${p.cpf} • Passaporte: ${p.passport}`
+                        ? `CPF: ${p.cpf} • Passaporte: ${p.passport}${
+                            p.passportExpiry ? ` (Venc: ${p.passportExpiry})` : ""
+                          }`
                         : p.cpf
                       : p.documentCpfOrPassport;
                     return (
