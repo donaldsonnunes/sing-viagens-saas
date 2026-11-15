@@ -16,6 +16,8 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronUp,
+  Clock,
+  MapPin,
 } from "lucide-react";
 
 interface FlightSearchExperienceProps {
@@ -625,37 +627,104 @@ export function FlightSearchExperience({
                         )}
                       </div>
 
-                      {/* Horários */}
-                      <div className="flex items-center justify-between gap-4 py-1">
-                        <div>
-                          <div className="font-mono text-2xl sm:text-3xl font-bold text-[#09090B] tracking-tight">
-                            {offer.departureTime}
+                      {/* Horários e Visualização Rápida de Conexão */}
+                      <div className="space-y-3 py-1">
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <div className="font-mono text-2xl sm:text-3xl font-bold text-[#09090B] tracking-tight">
+                              {offer.departureTime}
+                            </div>
+                            <div className="text-xs font-semibold text-zinc-500 mt-0.5">
+                              {offer.originAirport.city} ({offer.originAirport.iata})
+                            </div>
                           </div>
-                          <div className="text-xs font-semibold text-zinc-500 mt-0.5">
-                            {offer.originAirport.city} ({offer.originAirport.iata})
+
+                          <div className="flex-1 max-w-[240px] flex flex-col items-center">
+                            <span className="font-mono text-[11px] font-semibold text-zinc-500">
+                              Duração total: {offer.duration}
+                            </span>
+
+                            {/* Linha do Voo com Indicador Visual de Parada */}
+                            <div className="w-full h-[2px] bg-zinc-200 my-2.5 relative flex items-center justify-center">
+                              {offer.stops === 0 ? (
+                                <Plane className="w-3.5 h-3.5 text-emerald-600 bg-white px-0.5" />
+                              ) : (
+                                <div className="flex items-center gap-1.5 bg-white px-2">
+                                  {offer.connections?.map((conn, cIdx) => (
+                                    <span
+                                      key={cIdx}
+                                      title={`Conexão em ${conn.city} (${conn.airportCode}) — Tempo de espera: ${conn.layoverDuration}`}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#172C3B] text-[#E8E2D9] font-mono text-[10px] font-bold shadow-xs"
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#BD9472]" />
+                                      {conn.airportCode}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {offer.stops === 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/70 text-[11px] font-semibold">
+                                Voo Direto • Sem paradas
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#BD9472]/15 text-[#172C3B] border border-[#BD9472]/40 text-[11px] font-bold">
+                                <Clock className="w-3 h-3 text-[#BD9472]" />
+                                {offer.stops === 1
+                                  ? `1 Conexão em ${offer.connections?.[0]?.city}`
+                                  : `${offer.stops} Conexões`}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-right">
+                            <div className="font-mono text-2xl sm:text-3xl font-bold text-[#09090B] tracking-tight">
+                              {offer.arrivalTime}
+                            </div>
+                            <div className="text-xs font-semibold text-zinc-500 mt-0.5">
+                              {offer.destinationAirport.city} ({offer.destinationAirport.iata})
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex-1 max-w-[170px] flex flex-col items-center">
-                          <span className="font-mono text-[11px] text-zinc-400">
-                            {offer.duration}
-                          </span>
-                          <div className="w-full h-[1px] bg-zinc-200 my-2 relative flex items-center justify-center">
-                            <Plane className="w-3.5 h-3.5 text-[#BD9472] bg-white px-0.5" />
-                          </div>
-                          <span className="text-[11px] font-medium text-zinc-500">
-                            {offer.stops === 0 ? "Voo Direto" : `${offer.stops} conexão`}
-                          </span>
-                        </div>
+                        {/* Card de Destaque da Conexão (Visível Imediatamente quando há parada) */}
+                        {offer.stops > 0 && offer.connections && offer.connections.length > 0 && (
+                          <div className="rounded-xl bg-[#FAF8F5] border border-[#BD9472]/35 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            {offer.connections.map((conn, cIdx) => (
+                              <div
+                                key={cIdx}
+                                className="w-full flex flex-wrap items-center justify-between gap-2"
+                              >
+                                <div className="flex items-center gap-2 text-[#172C3B]">
+                                  <MapPin className="w-3.5 h-3.5 text-[#BD9472] shrink-0" />
+                                  <span>
+                                    Parada em{" "}
+                                    <strong className="font-bold">
+                                      {conn.city} ({conn.airportCode})
+                                    </strong>{" "}
+                                    <span className="text-zinc-500 hidden sm:inline">
+                                      • Chega às {conn.arrivalAtConnection} e sai às{" "}
+                                      {conn.departureFromConnection}
+                                    </span>
+                                  </span>
+                                </div>
 
-                        <div className="text-right">
-                          <div className="font-mono text-2xl sm:text-3xl font-bold text-[#09090B] tracking-tight">
-                            {offer.arrivalTime}
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#172C3B] text-[#E8E2D9] font-mono text-[11px] font-bold">
+                                    <Clock className="w-3 h-3 text-[#BD9472]" />
+                                    Tempo de conexão: {conn.layoverDuration}
+                                  </span>
+                                  <span className="text-[11px] font-medium text-zinc-500">
+                                    {conn.changeAircraft
+                                      ? "Com troca de avião"
+                                      : "Mesma aeronave"}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <div className="text-xs font-semibold text-zinc-500 mt-0.5">
-                            {offer.destinationAirport.city} ({offer.destinationAirport.iata})
-                          </div>
-                        </div>
+                        )}
                       </div>
 
                       {/* Rodapé da Coluna Sing */}

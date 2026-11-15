@@ -4,6 +4,17 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.4.1] — 2026-11-14
+### Adicionado (Visualização Clara de Conexões: Local, Horários e Tempo de Espera)
+- **Detalhamento Visual de Conexões nos Resultados de Busca (`src/lib/flightEngine.ts` e `src/components/FlightSearchExperience.tsx`)**:
+  - Na linha do tempo de cada voo, voos diretos recebem o selo verde *"Voo Direto • Sem paradas"* e voos com conexão exibem na própria linha a sigla do aeroporto de parada (ex.: `VCP`, `BSB`, `LIS`).
+  - Adicionado um card de destaque imediato abaixo do horário nos voos com conexão mostrando:
+    - **Onde é a parada**: Cidade e sigla do aeroporto (ex.: *Parada em Campinas (VCP)* ou *Brasília (BSB)*).
+    - **Horário de chegada e saída na conexão** (ex.: *Chega às 17:35 e sai às 18:45*).
+    - **Tempo de conexão em solo** destacado em badge (`Tempo de conexão: 01h 10m`) e indicação se há **troca de avião** ou **mesma aeronave**.
+
+---
+
 ## [2.4.0] — 2026-11-14
 ### Adicionado (Integração Oficial com Banco de Dados Supabase PostgreSQL — Região São Paulo `sa-east-1`)
 - **Criação e Provisionamento do Projeto Supabase (`sing-viagens-saas` / `lbbjgxvbjbsoaglsccun`)**:

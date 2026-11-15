@@ -2,8 +2,8 @@ import { AIRPORTS, Airport } from "@/data/airports";
 import { PricingRuleConfig, AirlineKey } from "@/lib/db";
 
 export interface FlightSearchParams {
-  origin: string; // IATA code
-  destination: string; // IATA code
+  origin: string; // Código de 3 letras do aeroporto
+  destination: string;
   departureDate: string;
   returnDate?: string;
   tripType: "ROUND_TRIP" | "ONE_WAY";
@@ -22,6 +22,16 @@ export interface AirlineCompetitorComparison {
   baggageNote: string;
 }
 
+export interface FlightStopConnection {
+  airportCode: string;
+  city: string;
+  airportName: string;
+  layoverDuration: string;
+  arrivalAtConnection: string;
+  departureFromConnection: string;
+  changeAircraft: boolean;
+}
+
 export interface FlightOfferResult {
   id: string;
   operatingAirlineCode: AirlineKey;
@@ -35,6 +45,7 @@ export interface FlightOfferResult {
   duration: string;
   stops: number;
   stopsDescription: string;
+  connections: FlightStopConnection[];
   baggageIncluded: string;
   eventRecommendationBadge?: string;
   passengerBreakdown: {
@@ -44,16 +55,16 @@ export interface FlightOfferResult {
     equivalentAdultMultiplier: number;
   };
   pricingBreakdown: {
-    totalMilesRequired: number; // Quantidade total de milhas retornada pela API
-    mileCostPerThousandApplied: number; // Valor do milheiro da cia parametrizado no Admin (R$)
-    milesMonetaryCost: number; // Custo puro das milhas em R$
-    boardingTaxesTotal: number; // Taxas de embarque em R$
-    totalMilesCostWithTaxes: number; // Custo Base em Milhas + Taxas (Ex: R$ 1.000,00)
-    airlineDirectCashPriceTotal: number; // Valor na Companhia Aérea com taxas (Ex: R$ 1.500,00)
-    grossSpreadDifference: number; // Diferença entre Cia e Custo Milhas (Ex: R$ 500,00)
-    profitSharePercentApplied: number; // % de lucro sobre a diferença parametrizado no Admin (Ex: 50%)
-    singProfitAmount: number; // Lucro Sing sobre o spread (Ex: R$ 250,00)
-    singFinalSalePriceTotal: number; // Preço Final Sing = Custo Milhas c/ Taxas + Lucro (Ex: R$ 1.250,00)
+    totalMilesRequired: number;
+    mileCostPerThousandApplied: number;
+    milesMonetaryCost: number;
+    boardingTaxesTotal: number;
+    totalMilesCostWithTaxes: number;
+    airlineDirectCashPriceTotal: number;
+    grossSpreadDifference: number;
+    profitSharePercentApplied: number;
+    singProfitAmount: number;
+    singFinalSalePriceTotal: number;
     singPricePerPersonAvg: number;
   };
   airlineDirectComparison: AirlineCompetitorComparison[];
@@ -101,6 +112,22 @@ export function searchAndCompareFlights(
       ? 1.5
       : 1.0;
 
+  // Hubs dinâmicos para conexões (evitando repetir origem/destino)
+  const domesticHub1 =
+    originAirport.iata !== "VCP" && destinationAirport.iata !== "VCP"
+      ? { code: "VCP", city: "Campinas", name: "Aeroporto de Viracopos" }
+      : { code: "CNF", city: "Belo Horizonte", name: "Aeroporto de Confins" };
+
+  const domesticHub2 =
+    originAirport.iata !== "BSB" && destinationAirport.iata !== "BSB"
+      ? { code: "BSB", city: "Brasília", name: "Aeroporto Internacional JK" }
+      : { code: "CNF", city: "Belo Horizonte", name: "Aeroporto de Confins" };
+
+  const intlHub1 =
+    originAirport.iata !== "LIS" && destinationAirport.iata !== "LIS"
+      ? { code: "LIS", city: "Lisboa", name: "Aeroporto Humberto Delgado" }
+      : { code: "MAD", city: "Madrid", name: "Aeroporto de Barajas" };
+
   const airlinesSchedule: {
     code: AirlineKey;
     name: string;
@@ -110,6 +137,7 @@ export function searchAndCompareFlights(
     duration: string;
     stops: number;
     stopsDesc: string;
+    connections: FlightStopConnection[];
     baseMilesPerAdultWay: number;
     baseCashFarePerAdultWay: number;
     badge?: string;
@@ -124,22 +152,34 @@ export function searchAndCompareFlights(
           duration: "09h 45m",
           stops: 0,
           stopsDesc: "Voo Direto",
+          connections: [],
           baseMilesPerAdultWay: 58000,
           baseCashFarePerAdultWay: 2250,
-          badge: "Ideal para Shows e Eventos Internacionais",
+          badge: "Voo Direto • Ideal para Shows Internacionais",
         },
         {
           code: "TAP",
           name: "TAP Air Portugal",
           flightPrefix: "TP082",
           depTime: "17:15",
-          arrTime: "06:10 (+1)",
-          duration: "09h 55m",
-          stops: 0,
-          stopsDesc: "Voo Direto (Stopover disponível)",
+          arrTime: "08:25 (+1)",
+          duration: "12h 10m",
+          stops: 1,
+          stopsDesc: `1 conexão em ${intlHub1.city} (${intlHub1.code}) • 02h 15m`,
+          connections: [
+            {
+              airportCode: intlHub1.code,
+              city: intlHub1.city,
+              airportName: intlHub1.name,
+              layoverDuration: "02h 15m",
+              arrivalAtConnection: "05:05 (+1)",
+              departureFromConnection: "07:20 (+1)",
+              changeAircraft: true,
+            },
+          ],
           baseMilesPerAdultWay: 36000,
           baseCashFarePerAdultWay: 2420,
-          badge: "Melhor Conexão Europa",
+          badge: "Menor Custo em Milhas",
         },
         {
           code: "AMERICAN",
@@ -150,6 +190,7 @@ export function searchAndCompareFlights(
           duration: "09h 35m",
           stops: 0,
           stopsDesc: "Voo Direto",
+          connections: [],
           baseMilesPerAdultWay: 24000,
           baseCashFarePerAdultWay: 2380,
         },
@@ -161,7 +202,18 @@ export function searchAndCompareFlights(
           arrTime: "05:15 (+1)",
           duration: "11h 55m",
           stops: 1,
-          stopsDesc: "1 conexão rápida (VCP)",
+          stopsDesc: `1 conexão em ${domesticHub1.city} (${domesticHub1.code}) • 01h 25m`,
+          connections: [
+            {
+              airportCode: domesticHub1.code,
+              city: domesticHub1.city,
+              airportName: domesticHub1.name,
+              layoverDuration: "01h 25m",
+              arrivalAtConnection: "14:25",
+              departureFromConnection: "15:50",
+              changeAircraft: true,
+            },
+          ],
           baseMilesPerAdultWay: 65000,
           baseCashFarePerAdultWay: 2150,
           badge: "Excelente Custo de Milheiro",
@@ -176,7 +228,8 @@ export function searchAndCompareFlights(
           arrTime: "09:25",
           duration: "01h 10m",
           stops: 0,
-          stopsDesc: "Voo Direto • Horário Nobre",
+          stopsDesc: "Voo Direto",
+          connections: [],
           baseMilesPerAdultWay: 7200,
           baseCashFarePerAdultWay: 310,
           badge: "Mais Escolhido para Shows & Fim de Semana",
@@ -190,6 +243,7 @@ export function searchAndCompareFlights(
           duration: "01h 15m",
           stops: 0,
           stopsDesc: "Voo Direto",
+          connections: [],
           baseMilesPerAdultWay: 9500,
           baseCashFarePerAdultWay: 295,
           badge: "Melhor Oportunidade em Milhas",
@@ -199,10 +253,21 @@ export function searchAndCompareFlights(
           name: "Azul Linhas Aéreas",
           flightPrefix: "AD4190",
           depTime: "16:30",
-          arrTime: "17:45",
-          duration: "01h 15m",
-          stops: 0,
-          stopsDesc: "Voo Direto • Serviço de Bordo VIP",
+          arrTime: "19:50",
+          duration: "03h 20m",
+          stops: 1,
+          stopsDesc: `1 conexão em ${domesticHub1.city} (${domesticHub1.code}) • 01h 10m`,
+          connections: [
+            {
+              airportCode: domesticHub1.code,
+              city: domesticHub1.city,
+              airportName: domesticHub1.name,
+              layoverDuration: "01h 10m",
+              arrivalAtConnection: "17:35",
+              departureFromConnection: "18:45",
+              changeAircraft: true,
+            },
+          ],
           baseMilesPerAdultWay: 8400,
           baseCashFarePerAdultWay: 335,
         },
@@ -211,10 +276,21 @@ export function searchAndCompareFlights(
           name: "LATAM Airlines",
           flightPrefix: "LA3902",
           depTime: "19:50",
-          arrTime: "21:05",
-          duration: "01h 15m",
-          stops: 0,
-          stopsDesc: "Voo Direto Noturno",
+          arrTime: "22:55",
+          duration: "03h 05m",
+          stops: 1,
+          stopsDesc: `1 conexão em ${domesticHub2.city} (${domesticHub2.code}) • 00h 55m`,
+          connections: [
+            {
+              airportCode: domesticHub2.code,
+              city: domesticHub2.city,
+              airportName: domesticHub2.name,
+              layoverDuration: "00h 55m",
+              arrivalAtConnection: "20:50",
+              departureFromConnection: "21:45",
+              changeAircraft: false,
+            },
+          ],
           baseMilesPerAdultWay: 6600,
           baseCashFarePerAdultWay: 280,
         },
@@ -229,7 +305,6 @@ export function searchAndCompareFlights(
         paidSeatsCount
     );
 
-    // 1. Retorno da API em Milhas + Cálculo pelo Valor do Milheiro da Cia parametrizado no Admin
     const totalMilesRequired = Math.round(
       item.baseMilesPerAdultWay *
         roundTripMultiplier *
@@ -246,7 +321,6 @@ export function searchAndCompareFlights(
 
     const totalMilesCostWithTaxes = milesMonetaryCost + boardingTaxesTotal;
 
-    // 2. Retorno da API em Valor (Preço Direto na Companhia Aérea com taxas)
     const rawAirlineCashTotal = Math.round(
       item.baseCashFarePerAdultWay *
         roundTripMultiplier *
@@ -255,13 +329,11 @@ export function searchAndCompareFlights(
         boardingTaxesTotal
     );
 
-    // Garante que o preço na cia seja superior ao custo em milhas para demonstrar a regra do spread com clareza
     const airlineDirectCashPriceTotal = Math.max(
       rawAirlineCashTotal,
       Math.round(totalMilesCostWithTaxes * 1.45)
     );
 
-    // 3. Regra Oficial Sing: Percentual de Lucro sobre a diferença (Spread) entre Custo Milhas e Preço Cia
     const grossSpreadDifference = Math.max(
       0,
       airlineDirectCashPriceTotal - totalMilesCostWithTaxes
@@ -276,7 +348,6 @@ export function searchAndCompareFlights(
 
     const singFinalSalePriceTotal = totalMilesCostWithTaxes + singProfitAmount;
 
-    // 4. Coluna Comparativa ao lado com as principais Cias Aéreas da rota
     const competitorTemplates = isInternational
       ? [
           {
@@ -285,7 +356,7 @@ export function searchAndCompareFlights(
             flightNumber: item.flightPrefix,
             factor: 1.0,
             isSame: true,
-            baggageNote: "Mesmo voo direto na Cia",
+            baggageNote: "Mesmo voo na Cia",
           },
           {
             airlineCode: "LATAM",
@@ -319,7 +390,7 @@ export function searchAndCompareFlights(
             flightNumber: item.flightPrefix,
             factor: 1.0,
             isSame: true,
-            baggageNote: "Mesmo voo direto na Cia",
+            baggageNote: "Mesmo voo na Cia",
           },
           {
             airlineCode: "LATAM",
@@ -382,6 +453,7 @@ export function searchAndCompareFlights(
       duration: item.duration,
       stops: item.stops,
       stopsDescription: item.stopsDesc,
+      connections: item.connections,
       baggageIncluded:
         params.cabinClass === "BUSINESS"
           ? "2 Bagagens Despachadas 23kg + Mão 10kg + Sala VIP"
