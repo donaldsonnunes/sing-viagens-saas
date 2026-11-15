@@ -851,7 +851,7 @@ export function FlightSearchExperience({
                           </span>
                         ) : (
                           <span className="text-[10px] font-medium text-zinc-500 truncate">
-                            ~{(day.estimatedLowestMiles / 1000).toFixed(1)}k mi
+                            Tarifa monitorada
                           </span>
                         )}
                       </div>

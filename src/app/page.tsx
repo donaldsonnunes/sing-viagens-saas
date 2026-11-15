@@ -226,7 +226,7 @@ export default function HomePage() {
                   Você vê o nosso preço e o valor direto nas companhias aéreas na mesma tela.
                 </h3>
                 <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-xl">
-                  Através da nossa emissão inteligente por milhas aéreas, reduzimos o impacto das passagens caras em finais de semana de shows, feriados e viagens internacionais.
+                  Através da nossa emissão inteligente e monitoramento contínuo quando a tarifa baixa, reduzimos o impacto das passagens caras em finais de semana de shows, feriados e viagens internacionais.
                 </p>
               </div>
 

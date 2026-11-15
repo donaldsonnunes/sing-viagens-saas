@@ -190,7 +190,7 @@ export function searchAndCompareFlights(
           ],
           baseMilesPerAdultWay: 36000,
           baseCashFarePerAdultWay: 2420,
-          badge: "Menor Custo em Milhas",
+          badge: "Melhor Tarifa",
         },
         {
           code: "AMERICAN",
@@ -257,7 +257,7 @@ export function searchAndCompareFlights(
           connections: [],
           baseMilesPerAdultWay: 9500,
           baseCashFarePerAdultWay: 295,
-          badge: "Melhor Oportunidade em Milhas",
+          badge: "Tarifa Reduzida",
         },
         {
           code: "AZUL",

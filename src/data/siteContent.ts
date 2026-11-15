@@ -22,7 +22,7 @@ export const SERVICES: ServicePackage[] = [
     shortDescription:
       "Emissão estratégica de passagens aéreas para os maiores shows e festivais do Brasil e do mundo, protegendo você contra as tarifas de pico das companhias.",
     heroDescription:
-      "Quando um grande show ou festival é anunciado, os preços das passagens aéreas disparam nas companhias. A Sing Turismo utiliza inteligência de emissão por milhas e tarifas negociadas para conectar você ao seu evento com economia real e horários seguros.",
+      "Quando um grande show ou festival é anunciado, os preços das passagens aéreas disparam nas companhias. A Sing Turismo utiliza inteligência tarifária e tarifas negociadas para conectar você ao seu evento com economia real e horários seguros.",
     priceStartingAt: "Economia comparada em tempo real",
     idealFor:
       "Fãs de música, casais e amigos viajando para assistir grandes shows, festivais nacionais e turnês internacionais.",
@@ -188,7 +188,7 @@ export const SERVICES: ServicePackage[] = [
       {
         title: "A Maior Economia Percentual da Aviação",
         description:
-          "É justamente na Classe Executiva que a emissão via milhas da Sing gera as maiores diferenças a seu favor frente ao preço da companhia.",
+          "É justamente na Classe Executiva que a emissão inteligente da Sing gera as maiores diferenças a seu favor frente ao preço da companhia.",
       },
       {
         title: "Chegue Descansado para o Seu Evento",
@@ -272,7 +272,7 @@ export const FAQ_ITEMS = [
     category: "Passagens e Economia",
     question: "Por que a passagem aérea na Sing Turismo é mais barata que direto na companhia?",
     answer:
-      "Porque utilizamos gestão inteligente de milhas aéreas e acordos tarifários. Quando o custo da emissão por milhas (já somando as taxas) é menor que o valor cobrado em dinheiro no site da companhia aérea, nós repassamos essa economia diretamente para você no preço final.",
+      "Porque utilizamos gestão inteligente de emissões e acordos tarifários. Quando identificamos uma tarifa especial ou queda de preço abaixo do valor cobrado no site da companhia aérea, nós repassamos essa economia diretamente para você no preço final.",
   },
   {
     category: "Comparativo de Voos",
@@ -313,7 +313,7 @@ export const BLOG_POSTS = [
     content: [
       "Assim que um grande artista ou festival divulga as datas de apresentação, milhares de fãs buscam voos para a mesma cidade e no mesmo final de semana.",
       "O sistema automático das companhias aéreas percebe esse aumento de procura e encerra rapidamente os lotes promocionais em dinheiro, deixando apenas as tarifas mais altas no site oficial.",
-      "Na Sing Turismo, comparamos o valor comercial da companhia com o nosso custo de emissão via milhas aéreas. Dessa forma, mesmo em finais de semana de estádio lotado, conseguimos oferecer o mesmo voo por um valor muito mais equilibrado.",
+      "Na Sing Turismo, comparamos o valor comercial da companhia com a nossa emissão inteligente de tarifas especiais. Dessa forma, mesmo em finais de semana de estádio lotado, conseguimos oferecer o mesmo voo por um valor muito mais equilibrado.",
     ],
   },
   {
