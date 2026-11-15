@@ -67,7 +67,24 @@ export default function HomePage() {
           </div>
 
           {/* DEMONSTRAÇÃO SIMPLES DE ECONOMIA EM PASSAGENS */}
-          <div className="rounded-2xl bg-[#0E1318]/90 border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.65)] overflow-hidden backdrop-blur-xl">
+          <div className="relative rounded-2xl bg-[#0E1318]/90 border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.65)] overflow-hidden backdrop-blur-xl">
+            {/* Carimbo redondo ilustrativo */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none select-none absolute top-3 right-3 sm:top-4 sm:right-4 z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-[#BD9472]/75 bg-[#09090B]/70 backdrop-blur-xs flex items-center justify-center -rotate-12 shadow-lg"
+            >
+              <div className="w-[84%] h-[84%] rounded-full border border-[#BD9472]/45 flex flex-col items-center justify-center text-center px-1">
+                <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-[0.2em] text-[#BD9472]/80">
+                  ★ SING ★
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-[#BD9472] leading-tight mt-0.5">
+                  Exemplo
+                  <br />
+                  Ilustrativo
+                </span>
+              </div>
+            </div>
+
             <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
               <div className="lg:col-span-4 rounded-2xl bg-[#09090B] border border-white/10 p-5 flex flex-col items-center text-center space-y-3">
                 <img
