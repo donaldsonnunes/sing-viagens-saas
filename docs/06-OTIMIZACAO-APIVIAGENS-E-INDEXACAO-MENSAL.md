@@ -86,10 +86,10 @@ Arquivo de Migration: `supabase/migrations/20261115012000_flight_inventory_inter
 ### 3.1. Por que Decomposição Atômica supera o Cache Tradicional?
 Em um cache tradicional, a chave é a busca completa (`GRU-REC-Ida:20/11-Volta:25/11`). Se outro cliente pesquisar `GRU-REC-Ida:20/11-Volta:28/11` (ou apenas ida em `20/11`), o cache tradicional falha e paga novamente pela ida de `20/11`.
 
-Com a nossa tabela **`public.flight_leg_inventory`** e o índice em memória **`legInventoryIndex`**:
-1. A Ida (`GRU -> REC | 2026-11-20`) e a Volta (`REC -> GRU | 2026-11-25`) são salvas como **trechos direcionais independentes**.
+Com a nossa tabela **`public.flight_leg_inventory`** (aplicada no Supabase `lbbjgxvbjbsoaglsccun`) e o índice em memória **`legInventoryIndex`**:
+1. A Ida (`GRU -> REC | 2026-11-20`) e a Volta (`REC -> GRU | 2026-11-25`) são salvas como **trechos direcionais independentes** tanto em memória quanto no PostgreSQL (`persistLegInventoryToSupabase`).
 2. As conexões intermediárias (`complete_path`) são salvas na coluna `path_airports text[]` indexada via **GIN (`USING GIN (path_airports)`)**.
-3. Qualquer pesquisa futura que tenha interseção com o dia da ida, com o dia da volta ou com um trecho intermediário reaproveita os voos já armazenados sem chamar a API!
+3. Em qualquer *cold start* ou nova instância Serverless, o gateway consulta `POST /rest/v1/rpc/query_flight_intersection` (`fetchFlightIntersectionFromSupabase`) antes de acionar a APIVIAGENS!
 
 ### 3.2. Matriz Mensal Pré-Indexada (`public.monthly_fare_calendar`) & Janela Deslizante de 7 Dias
 Sempre que uma rota `Origem -> Destino` é consultada em qualquer dia de um mês (ex.: `2026-11-20`), a função `indexFullMonthForRoute`:
@@ -153,11 +153,15 @@ Mapeado e validado em produção para o *parser* `normalizeLiveApiViagensToOffer
 
 ---
 
-## 5. Rotas Internas Criadas no SingViagens
+## 5. Rotas Internas Criadas no SingViagens & Painel Admin
 
 | Rota | Método | Descrição | Custo de Créditos |
 | :--- | :--- | :--- | :--- |
 | `/api/flights/search` | `POST` | Busca principal integrada ao Gateway de Interseção, Filtro de Malha e Calendário Mensal | `0` (Cache/Interseção/Sandbox) ou `25` por provider com resultado quando `allowLiveCreditSpend=true` |
 | `/api/apiviagens/book` | `POST` | Reserva oficial de localizador PNR (`POST /v1/airfares/book`) usando `offer_id` | **Grátis (`0` créditos)** |
 | `/api/apiviagens/book?locator=XXX` | `GET` | Consulta oficial de status do localizador (`GET /v1/airfares/booking/{locator}`) | **Grátis (`0` créditos)** |
-| `/api/apiviagens/account` | `GET` | Consulta de saldo real (`GET /v1/account`) + Relatório de créditos poupados pelo Gateway | **Grátis (`0` créditos)** |
+| `/api/apiviagens/account` | `GET` | Consulta de saldo real (`GET /v1/account`) + Relatório de créditos poupados pelo Gateway (consumida no `/admin`) | **Grátis (`0` créditos)** |
+| `/api/apiviagens/monthly-sync` | `GET` / `POST` | Lê ou pré-aquece os 30/31 dias do mês em `monthly_fare_calendar` (`src/lib/monthlyCrawlerService.ts`) | `0` (matriz) ou `25` (6 âncoras multitrecho) |
+
+### Contrato Real Validado em `/v1/airfares` (Tarifado):
+- Retorna `outbound[]` (ou `combined[]`) com `id` (`"af_..."`), `airlines[]`, `fare_family`, `legs[0].depart_at`, `legs[0].arrive_at`, `legs[0].duration_minutes`, `legs[0].segments[0].baggage` e `price.total` / `price.taxes`. Já mapeado em `normalizeLiveApiViagensToOffers`.

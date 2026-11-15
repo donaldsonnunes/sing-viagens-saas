@@ -46,6 +46,13 @@ export default function AdminPricingPage() {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [adminUser, setAdminUser] = useState<any>(null);
+  const [apiViagensStatus, setApiViagensStatus] = useState<any>(null);
+  const [loadingApiBalance, setLoadingApiBalance] = useState(false);
+  const [syncOrigin, setSyncOrigin] = useState("GRU");
+  const [syncDest, setSyncDest] = useState("REC");
+  const [syncMonth, setSyncMonth] = useState("2026-11");
+  const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
+  const [syncingMonth, setSyncingMonth] = useState(false);
 
   // Novo Show no Admin
   const [newShowTitle, setNewShowTitle] = useState("");
@@ -68,13 +75,49 @@ export default function AdminPricingPage() {
   const [simBoardingTax, setSimBoardingTax] = useState(142.5);
   const [simDirectAirlineCashPrice, setSimDirectAirlineCashPrice] = useState(1500);
 
+  const refreshApiViagensBalance = () => {
+    setLoadingApiBalance(true);
+    fetch("/api/apiviagens/account")
+      .then((r) => r.json())
+      .then((res) => setApiViagensStatus(res))
+      .catch(() => {})
+      .finally(() => setLoadingApiBalance(false));
+  };
+
+  const handleWarmupMonthlyCalendar = async (useApiAnchors: boolean) => {
+    setSyncingMonth(true);
+    setSyncStatusMsg(null);
+    try {
+      const res = await fetch("/api/apiviagens/monthly-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: syncOrigin,
+          destination: syncDest,
+          yearMonth: syncMonth,
+          useApiAnchors,
+        }),
+      });
+      const data = await res.json();
+      if (data.daysIndexed) {
+        setSyncStatusMsg(
+          `Mês ${data.yearMonth} (${data.origin}→${data.destination}) indexado: ${data.daysIndexed} dias gravados no Supabase (${data.creditsConsumed} créd. gastos).`
+        );
+        if (useApiAnchors) refreshApiViagensBalance();
+      }
+    } finally {
+      setSyncingMonth(false);
+    }
+  };
+
   const loadAdminData = () => {
     setLoading(true);
     Promise.all([
       fetch("/api/admin/pricing").then((r) => r.json()),
       fetch("/api/portal").then((r) => r.json()),
+      fetch("/api/apiviagens/account").then((r) => r.json()).catch(() => null),
     ])
-      .then(([data, portalData]) => {
+      .then(([data, portalData, apiAcc]) => {
         if (data.pricingConfig) {
           setConfig(data.pricingConfig);
         }
@@ -89,6 +132,9 @@ export default function AdminPricingPage() {
         }
         if (Array.isArray(portalData?.alerts)) {
           setAlertsList(portalData.alerts);
+        }
+        if (apiAcc) {
+          setApiViagensStatus(apiAcc);
         }
       })
       .finally(() => setLoading(false));
@@ -646,6 +692,160 @@ export default function AdminPricingPage() {
               </table>
             </div>
           </div>
+        </div>
+
+        {/* =====================================================================
+            GATEWAY APIVIAGENS — SALDO EM TEMPO REAL & ECONOMIA DO CACHE
+           ===================================================================== */}
+        <div className="rounded-2xl bg-[#09090B] text-white border border-white/10 shadow-md p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#BD9472]">
+                <Coins className="w-4 h-4" />
+                <span>Gateway APIVIAGENS — Monitoramento de Saldo & Economia (0 Créditos)</span>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Conta:{" "}
+                <strong className="text-white">
+                  {apiViagensStatus?.accountBalance?.account || "Carregando..."}
+                </strong>{" "}
+                • Status:{" "}
+                <span className="text-emerald-400 font-semibold">
+                  {apiViagensStatus?.liveApiConfigured ? "Chaves Ativas (.env.local)" : "Sandbox Local"}
+                </span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={refreshApiViagensBalance}
+              disabled={loadingApiBalance}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingApiBalance ? "animate-spin" : ""}`} />
+              <span>Atualizar Saldo (Grátis)</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+              <div className="text-[11px] text-zinc-400 uppercase font-semibold">
+                Saldo Atual APIVIAGENS
+              </div>
+              <div className="font-mono text-2xl font-extrabold text-[#BD9472] mt-1">
+                {apiViagensStatus?.accountBalance?.balance_credits ?? "—"} créd.
+              </div>
+              <div className="text-[11px] text-zinc-400 mt-0.5 font-mono">
+                {apiViagensStatus?.accountBalance?.balance_credits != null
+                  ? `Equivalente a R$ ${(
+                      apiViagensStatus.accountBalance.balance_credits * 0.01
+                    )
+                      .toFixed(2)
+                      .replace(".", ",")}`
+                  : "Aguardando consulta"}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+              <div className="text-[11px] text-zinc-400 uppercase font-semibold">
+                Custo / Concorrência
+              </div>
+              <div className="font-mono text-2xl font-extrabold text-white mt-1">
+                {apiViagensStatus?.accountBalance?.credits_per_search ?? 25} créd.
+              </div>
+              <div className="text-[11px] text-zinc-400 mt-0.5 font-mono">
+                R$ 0,25/resultado • Máx {apiViagensStatus?.accountBalance?.max_concurrent ?? 5} simultâneos
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-4">
+              <div className="text-[11px] text-emerald-300 uppercase font-semibold">
+                Poupado pelo Gateway
+              </div>
+              <div className="font-mono text-2xl font-extrabold text-emerald-400 mt-1">
+                {apiViagensStatus?.optimizationMetrics?.totalCreditsSaved ?? 0} créd.
+              </div>
+              <div className="text-[11px] text-emerald-300/80 mt-0.5 font-mono">
+                R${" "}
+                {(
+                  (apiViagensStatus?.optimizationMetrics?.totalCreditsSaved ?? 0) * 0.01
+                )
+                  .toFixed(2)
+                  .replace(".", ",")}{" "}
+                economizados
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+              <div className="text-[11px] text-zinc-400 uppercase font-semibold">
+                Rotas no Cache / Hits
+              </div>
+              <div className="font-mono text-2xl font-extrabold text-white mt-1">
+                {apiViagensStatus?.optimizationMetrics?.activeCachedRoutesCount ?? 0} /{" "}
+                {apiViagensStatus?.optimizationMetrics?.totalCacheHits ?? 0}
+              </div>
+              <div className="text-[11px] text-zinc-400 mt-0.5 font-mono">
+                Eficiência:{" "}
+                {apiViagensStatus?.optimizationMetrics?.savingsRatioPercent ?? 0}%
+              </div>
+            </div>
+          </div>
+
+          {/* Alimentador / Pré-aquecimento de Calendário Mensal (30 dias) */}
+          <div className="pt-3 border-t border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-zinc-300">
+                Pré-Aquecer Mês no Supabase:
+              </span>
+              <input
+                type="text"
+                maxLength={3}
+                value={syncOrigin}
+                onChange={(e) => setSyncOrigin(e.target.value.toUpperCase())}
+                className="w-16 rounded-lg bg-white/10 border border-white/20 px-2.5 py-1.5 font-mono text-xs font-bold text-white uppercase text-center"
+                aria-label="Origem IATA"
+              />
+              <span className="text-zinc-500">→</span>
+              <input
+                type="text"
+                maxLength={3}
+                value={syncDest}
+                onChange={(e) => setSyncDest(e.target.value.toUpperCase())}
+                className="w-16 rounded-lg bg-white/10 border border-white/20 px-2.5 py-1.5 font-mono text-xs font-bold text-white uppercase text-center"
+                aria-label="Destino IATA"
+              />
+              <input
+                type="month"
+                value={syncMonth}
+                onChange={(e) => setSyncMonth(e.target.value)}
+                className="rounded-lg bg-white/10 border border-white/20 px-2.5 py-1.5 font-mono text-xs text-white"
+                aria-label="Mês de referência"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={syncingMonth}
+                onClick={() => handleWarmupMonthlyCalendar(false)}
+                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition"
+              >
+                {syncingMonth ? "Indexando..." : "Indexar Mês (0 Créd.)"}
+              </button>
+              <button
+                type="button"
+                disabled={syncingMonth}
+                onClick={() => handleWarmupMonthlyCalendar(true)}
+                className="px-3.5 py-2 rounded-xl bg-[#BD9472] hover:bg-[#D4AF8E] text-xs font-bold text-[#09090B] transition"
+              >
+                Amostrar 6 Âncoras Reais (25 Créd.)
+              </button>
+            </div>
+          </div>
+          {syncStatusMsg && (
+            <div className="text-xs text-emerald-400 font-medium bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3.5 py-2">
+              {syncStatusMsg}
+            </div>
+          )}
         </div>
 
         {/* =====================================================================

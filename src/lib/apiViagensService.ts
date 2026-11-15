@@ -156,6 +156,7 @@ interface CacheEntry<T> {
   createdAtMs: number;
   expiresAtMs: number;
   providers: ApiViagensProvider[];
+  isLiveData?: boolean;
 }
 
 // Estado global persistido no processo Node.js (evita perda em HMR no Next.js dev)
@@ -544,6 +545,33 @@ function extractFlightsArrayFromPayload(
   return [];
 }
 
+function mapIataAirlineToKey(iataCode?: string, fallback: AirlineKey = "LATAM"): AirlineKey {
+  switch ((iataCode || "").toUpperCase()) {
+    case "LA":
+    case "JJ":
+      return "LATAM";
+    case "G3":
+      return "GOL";
+    case "AD":
+      return "AZUL";
+    case "TP":
+      return "TAP";
+    case "AA":
+      return "AMERICAN";
+    case "AF":
+      return "AIRFRANCE";
+    default:
+      return fallback;
+  }
+}
+
+function formatDurationMinutes(minutes?: number): string {
+  if (!minutes || !Number.isFinite(minutes)) return "03h 05m";
+  const h = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const m = String(Math.round(minutes % 60)).padStart(2, "0");
+  return `${h}h ${m}m`;
+}
+
 /**
  * Normaliza os retornos reais da APIVIAGENS (/v1/flights + /v1/airfares) para o formato FlightOfferResult
  * aplicando a regra de precificação e Spread da Sing Viagens.
@@ -581,7 +609,15 @@ function normalizeLiveApiViagensToOffers(
 
     for (let i = 0; i < Math.min(flightsList.length, 4); i++) {
       const f = flightsList[i];
-      const airlineKey = mapProviderToAirlineKey(res.provider);
+      const airfareLeg = f?.legs?.[0];
+      const airfareSeg = airfareLeg?.segments?.[0];
+      const firstSegment = f?.complete_path?.[0] || airfareSeg || airfareLeg;
+
+      const airlineKey = mapIataAirlineToKey(
+        f?.airlines?.[0] || airfareSeg?.airline || firstSegment?.airline_code,
+        mapProviderToAirlineKey(res.provider)
+      );
+
       const milesRequired = Math.round(
         Number(
           f?.raw_pricing?.miles ||
@@ -628,17 +664,38 @@ function normalizeLiveApiViagensToOffers(
       const offerId =
         f?.offer_id || f?.id || lowestCashOffer?.id || `af_${res.provider}_${Date.now()}_${i}`;
 
-      const firstSegment = f?.complete_path?.[0] || f?.legs?.[0];
-      const depIso = f?.main_path?.departure?.date || firstSegment?.departure?.date;
-      const arrIso = f?.main_path?.arrival?.date || firstSegment?.arrival?.date;
-      const stopsCount = Number(f?.stops_number ?? f?.stops ?? 0);
+      const depIso =
+        f?.main_path?.departure?.date ||
+        airfareLeg?.depart_at ||
+        firstSegment?.departure?.date;
+      const arrIso =
+        f?.main_path?.arrival?.date ||
+        airfareLeg?.arrive_at ||
+        firstSegment?.arrival?.date;
+      const stopsCount = Number(f?.stops_number ?? airfareLeg?.stops ?? f?.stops ?? 0);
       const companyName = Array.isArray(f?.company)
         ? f.company[0]
-        : firstSegment?.company || f?.airline_name || `${airlineKey} (${res.provider.toUpperCase()})`;
+        : f?.fare_family ||
+          firstSegment?.company ||
+          f?.airline_name ||
+          `${airlineKey} (${res.provider.toUpperCase()})`;
       const flightCode =
-        firstSegment?.airline_code && firstSegment?.flight_number
+        airfareSeg?.airline && airfareSeg?.flight_number
+          ? `${airfareSeg.airline}${airfareSeg.flight_number}`
+          : firstSegment?.airline_code && firstSegment?.flight_number
           ? `${firstSegment.airline_code}${firstSegment.flight_number}`
           : f?.flight_number || `${airlineKey.slice(0, 2)}3378`;
+
+      const durationStr = airfareLeg?.duration_minutes
+        ? formatDurationMinutes(airfareLeg.duration_minutes)
+        : formatDurationObj(f?.duration);
+
+      const baggageObj = airfareSeg?.baggage;
+      const baggageIncluded = baggageObj
+        ? baggageObj.included && baggageObj.quantity > 0
+          ? `${baggageObj.quantity} Bagagem(ns) Despachada(s) + Mão 10kg`
+          : "1 Bagagem de Mão 10kg + Item Pessoal (Tarifa Light)"
+        : baseSimulated[0].baggageIncluded;
 
       normalizedOffers.push({
         ...baseSimulated[0],
@@ -650,15 +707,19 @@ function normalizeLiveApiViagensToOffers(
         destinationAirport,
         departureTime: formatIsoTime(depIso),
         arrivalTime: formatIsoTime(arrIso, depIso),
-        duration: formatDurationObj(f?.duration),
+        duration: durationStr,
         stops: stopsCount,
         stopsDescription:
           stopsCount === 0
             ? "Voo Direto"
             : `${stopsCount} conexão (${formatDurationObj(f?.stops_duration)})`,
-        eventRecommendationBadge: `Oferta Real APIVIAGENS (${res.provider.toUpperCase()}) • ${milesRequired.toLocaleString(
-          "pt-BR"
-        )} mi`,
+        baggageIncluded,
+        eventRecommendationBadge:
+          res.provider === "tarifado"
+            ? `Tarifado Real APIVIAGENS • ID ${String(offerId)} (Reserva Grátis)`
+            : `Oferta Real APIVIAGENS (${res.provider.toUpperCase()}) • ${milesRequired.toLocaleString(
+                "pt-BR"
+              )} mi`,
         pricingBreakdown: {
           totalMilesRequired: milesRequired,
           mileCostPerThousandApplied: mileRate,
@@ -732,16 +793,33 @@ export async function searchFlightsWithApiViagensOptimization(params: {
   }_${params.searchParams.cabinClass}`;
   const existingLegIntersection = legInventoryIndex.get(outboundLegKey);
 
-  // 3. Verifica Cache Ativo ou Interseção Atômica de Trecho (50 min para preservar validade de ~1h do offer_id)
-  const hitEntry =
-    (!params.forceRefresh && existingCache && existingCache.expiresAtMs > nowMs
+  // 3. Verifica Cache Ativo ou Interseção Atômica de Trecho (Memória + Fallback Persistente no Supabase)
+  // Se shouldCallLiveApi === true, não aceita cache puramente simulado (isLiveData === false)
+  const isEntryValidForRequest = (entry?: CacheEntry<any> | null) => {
+    if (!entry || entry.expiresAtMs <= nowMs) return false;
+    if (shouldCallLiveApi && entry.isLiveData === false) return false;
+    return true;
+  };
+
+  let hitEntry =
+    (!params.forceRefresh && isEntryValidForRequest(existingCache)
       ? existingCache
       : null) ||
-    (!params.forceRefresh &&
-    existingLegIntersection &&
-    existingLegIntersection.expiresAtMs > nowMs
+    (!params.forceRefresh && isEntryValidForRequest(existingLegIntersection)
       ? existingLegIntersection
       : null);
+
+  // Se não achou na memória (ex.: cold start serverless), consulta a função SQL query_flight_intersection no Supabase
+  if (!hitEntry && !params.forceRefresh) {
+    const dbIntersection = await fetchFlightIntersectionFromSupabase(
+      params.searchParams
+    );
+    if (isEntryValidForRequest(dbIntersection)) {
+      hitEntry = dbIntersection;
+      legInventoryIndex.set(outboundLegKey, dbIntersection!);
+      searchCache.set(cacheKey, dbIntersection!);
+    }
+  }
 
   if (hitEntry) {
     sessionMetrics.cacheHits += 1;
@@ -904,6 +982,8 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       }
     }
 
+    const isLiveDataResult = shouldCallLiveApi && offers.length > 0;
+
     if (offers.length === 0) {
       const simulated = searchAndCompareFlights(params.searchParams, params.pricingConfig);
       // Filtra e injeta o offer_id compatível com POST /v1/airfares/book (af_XXXX)
@@ -925,6 +1005,7 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       createdAtMs: Date.now(),
       expiresAtMs: Date.now() + ttl,
       providers: routeSelection.queriedProviders,
+      isLiveData: isLiveDataResult,
     });
 
     // Indexação Atômica por Trecho (Ida e Volta separadas para permitir interseção futura!)
@@ -934,6 +1015,7 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       createdAtMs: Date.now(),
       expiresAtMs: Date.now() + ttl,
       providers: routeSelection.queriedProviders,
+      isLiveData: isLiveDataResult,
     });
 
     if (params.searchParams.tripType === "ROUND_TRIP" && params.searchParams.returnDate) {
@@ -946,11 +1028,21 @@ export async function searchFlightsWithApiViagensOptimization(params: {
         createdAtMs: Date.now(),
         expiresAtMs: Date.now() + ttl,
         providers: routeSelection.queriedProviders,
+        isLiveData: isLiveDataResult,
       });
     }
 
     // Indexa automaticamente os 30 dias do mês (YYYY-MM) para a mesma Origem -> Destino
     indexFullMonthForRoute(params.searchParams, offers);
+
+    // Persiste os trechos atômicos no Supabase (flight_leg_inventory) para interseção entre instâncias
+    void persistLegInventoryToSupabase({
+      searchParams: params.searchParams,
+      offers,
+      providers: routeSelection.queriedProviders,
+      sourceType: shouldCallLiveApi ? "APIVIAGENS_LIVE" : "SING_HYBRID_ENGINE",
+      ttlMs: ttl,
+    });
 
     const realCreditsSpent = shouldCallLiveApi
       ? actualProviderCalls * CREDITS_PER_PROVIDER_SEARCH
@@ -1156,6 +1248,171 @@ async function syncMonthlyIndexToSupabase(
     });
   } catch {
     // Tabela opcional caso a migration ainda não tenha sido aplicada no banco remoto
+  }
+}
+
+async function fetchFlightIntersectionFromSupabase(
+  searchParams: FlightSearchParams
+): Promise<CacheEntry<FlightOfferResult[]> | null> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/rpc/query_flight_intersection`,
+      {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          p_origin: searchParams.origin.toUpperCase(),
+          p_destination: searchParams.destination.toUpperCase(),
+          p_departure_date: searchParams.departureDate,
+          p_return_date:
+            searchParams.tripType === "ROUND_TRIP" && searchParams.returnDate
+              ? searchParams.returnDate
+              : null,
+          p_cabin_class: searchParams.cabinClass || "ECONOMY",
+        }),
+        cache: "no-store",
+      }
+    );
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const outboundLegs: any[] = Array.isArray(data?.outbound_cached_legs)
+      ? data.outbound_cached_legs
+      : [];
+
+    if (outboundLegs.length === 0) return null;
+
+    // Prioriza trechos vindos da APIVIAGENS_LIVE ou mais recentes
+    const bestLeg =
+      outboundLegs.find((l) => l.source_type === "APIVIAGENS_LIVE") ||
+      outboundLegs[0];
+    const offers: FlightOfferResult[] = Array.isArray(bestLeg?.offers_payload)
+      ? bestLeg.offers_payload
+      : [];
+
+    if (offers.length === 0) return null;
+
+    const createdAtMs = bestLeg.fetched_at
+      ? new Date(bestLeg.fetched_at).getTime()
+      : Date.now();
+    const expiresAtMs = bestLeg.cache_expires_at
+      ? new Date(bestLeg.cache_expires_at).getTime()
+      : Date.now() + OFFER_CACHE_TTL_MS;
+
+    return {
+      key: String(bestLeg.id),
+      data: offers,
+      createdAtMs,
+      expiresAtMs,
+      providers: [bestLeg.provider as ApiViagensProvider].filter(Boolean),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function persistLegInventoryToSupabase(params: {
+  searchParams: FlightSearchParams;
+  offers: FlightOfferResult[];
+  providers: ApiViagensProvider[];
+  sourceType: "APIVIAGENS_LIVE" | "SING_HYBRID_ENGINE";
+  ttlMs: number;
+}) {
+  try {
+    const { searchParams, offers, providers, sourceType, ttlMs } = params;
+    if (offers.length === 0) return;
+
+    const orig = searchParams.origin.toUpperCase();
+    const dest = searchParams.destination.toUpperCase();
+    const cabin = searchParams.cabinClass || "ECONOMY";
+    const mainProvider = providers[0] || "latam";
+
+    const lowestMiles = Math.min(
+      ...offers.map((o) => o.pricingBreakdown.totalMilesRequired)
+    );
+    const lowestTax = Math.min(
+      ...offers.map((o) => o.pricingBreakdown.boardingTaxesTotal)
+    );
+    const lowestCash = Math.min(
+      ...offers.map((o) => o.pricingBreakdown.airlineDirectCashPriceTotal)
+    );
+    const lowestSing = Math.min(
+      ...offers.map((o) => o.pricingBreakdown.singFinalSalePriceTotal)
+    );
+
+    const pathSet = new Set<string>([orig, dest]);
+    for (const o of offers) {
+      for (const c of o.connections || []) {
+        if (c.airportCode) pathSet.add(c.airportCode.toUpperCase());
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const offerExpiresIso = new Date(Date.now() + OFFER_CACHE_TTL_MS).toISOString();
+    const cacheExpiresIso = new Date(Date.now() + ttlMs).toISOString();
+
+    const rows: any[] = [
+      {
+        id: `leg_${orig}_${dest}_${searchParams.departureDate}_${mainProvider}_${cabin}`,
+        origin: orig,
+        destination: dest,
+        flight_date: searchParams.departureDate,
+        year_month: searchParams.departureDate.slice(0, 7),
+        provider: mainProvider,
+        cabin_class: cabin,
+        lowest_miles: lowestMiles,
+        lowest_tax_brl: lowestTax,
+        lowest_cash_brl: lowestCash,
+        lowest_sing_brl: lowestSing,
+        flights_count: offers.length,
+        path_airports: Array.from(pathSet),
+        offers_payload: offers,
+        source_type: sourceType,
+        fetched_at: nowIso,
+        offer_expires_at: offerExpiresIso,
+        cache_expires_at: cacheExpiresIso,
+      },
+    ];
+
+    if (searchParams.tripType === "ROUND_TRIP" && searchParams.returnDate) {
+      rows.push({
+        id: `leg_${dest}_${orig}_${searchParams.returnDate}_${mainProvider}_${cabin}`,
+        origin: dest,
+        destination: orig,
+        flight_date: searchParams.returnDate,
+        year_month: searchParams.returnDate.slice(0, 7),
+        provider: mainProvider,
+        cabin_class: cabin,
+        lowest_miles: lowestMiles,
+        lowest_tax_brl: lowestTax,
+        lowest_cash_brl: lowestCash,
+        lowest_sing_brl: lowestSing,
+        flights_count: offers.length,
+        path_airports: Array.from(pathSet),
+        offers_payload: offers,
+        source_type: sourceType,
+        fetched_at: nowIso,
+        offer_expires_at: offerExpiresIso,
+        cache_expires_at: cacheExpiresIso,
+      });
+    }
+
+    await fetch(`${SUPABASE_URL}/rest/v1/flight_leg_inventory?on_conflict=id`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(rows),
+    });
+  } catch {
+    // Falha silenciosa para não bloquear a resposta ao usuário
   }
 }
 

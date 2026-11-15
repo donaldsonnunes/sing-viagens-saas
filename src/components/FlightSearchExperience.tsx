@@ -71,6 +71,7 @@ export function FlightSearchExperience({
   >("SMART_ECONOMY");
   const [telemetry, setTelemetry] = useState<any>(null);
   const [preSearchCalendar, setPreSearchCalendar] = useState<any[]>([]);
+  const [useLiveApi, setUseLiveApi] = useState(true);
 
   const selectedOriginAirport = useMemo(
     () => (originIata ? AIRPORTS.find((a) => a.iata === originIata) || null : null),
@@ -146,6 +147,7 @@ export function FlightSearchExperience({
           childrenAges,
           cabinClass,
           strategy: overrideStrategy || searchStrategy,
+          allowLiveCreditSpend: saveHistory && useLiveApi,
           saveToHistory: saveHistory,
           userId: parsedUser?.id,
           userEmail: parsedUser?.email,
@@ -175,9 +177,22 @@ export function FlightSearchExperience({
     }
     if (typeof window !== "undefined") {
       try {
+        const currentUserRaw = localStorage.getItem("sing_user");
+        const currentUserEmail = currentUserRaw
+          ? (JSON.parse(currentUserRaw)?.email || "guest").toLowerCase()
+          : "guest";
+
         const savedSearch = sessionStorage.getItem("sing_active_search");
         if (savedSearch) {
           const parsed = JSON.parse(savedSearch);
+          const savedOwnerEmail = (parsed.ownerEmail || "guest").toLowerCase();
+
+          // Se trocou de usuário ou deslogou, limpa a pesquisa anterior imediatamente
+          if (savedOwnerEmail !== currentUserEmail) {
+            sessionStorage.removeItem("sing_active_search");
+            return;
+          }
+
           if (Array.isArray(parsed.offers) && parsed.offers.length > 0) {
             if (parsed.tripType) setTripType(parsed.tripType);
             if (parsed.originIata) setOriginIata(parsed.originIata);
@@ -215,9 +230,15 @@ export function FlightSearchExperience({
   useEffect(() => {
     if (typeof window === "undefined" || offers.length === 0) return;
     try {
+      const currentUserRaw = localStorage.getItem("sing_user");
+      const currentUserEmail = currentUserRaw
+        ? (JSON.parse(currentUserRaw)?.email || "guest").toLowerCase()
+        : "guest";
+
       sessionStorage.setItem(
         "sing_active_search",
         JSON.stringify({
+          ownerEmail: currentUserEmail,
           tripType,
           originIata,
           destinationIata,
@@ -810,19 +831,31 @@ export function FlightSearchExperience({
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={() => executeFlightSearch(true)}
-              disabled={loading}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#09090B] text-white font-semibold text-xs sm:text-sm hover:bg-[#172C3B] transition-all shadow-sm hover:shadow-md"
-            >
-              <Search className="w-4 h-4 text-[#BD9472]" />
-              <span>
-                {loading
-                  ? "Buscando os melhores voos..."
-                  : "Buscar Passagens e Comparar Cias"}
-              </span>
-            </button>
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+              <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#172C3B] cursor-pointer select-none bg-zinc-100 px-3 py-2 rounded-xl border border-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={useLiveApi}
+                  onChange={(e) => setUseLiveApi(e.target.checked)}
+                  className="rounded border-zinc-300 text-[#09090B] focus:ring-[#BD9472]"
+                />
+                <span>API Real (APIVIAGENS)</span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => executeFlightSearch(true)}
+                disabled={loading}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#09090B] text-white font-semibold text-xs sm:text-sm hover:bg-[#172C3B] transition-all shadow-sm hover:shadow-md"
+              >
+                <Search className="w-4 h-4 text-[#BD9472]" />
+                <span>
+                  {loading
+                    ? "Buscando os melhores voos..."
+                    : "Buscar Passagens e Comparar Cias"}
+                </span>
+              </button>
+            </div>
           </div>
           {searchError && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
