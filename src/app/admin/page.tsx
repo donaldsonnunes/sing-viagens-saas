@@ -45,6 +45,7 @@ export default function AdminPricingPage() {
   const [alertsList, setAlertsList] = useState<any[]>([]);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [adminUser, setAdminUser] = useState<any>(null);
 
   // Novo Show no Admin
   const [newShowTitle, setNewShowTitle] = useState("");
@@ -145,7 +146,43 @@ export default function AdminPricingPage() {
   };
 
   useEffect(() => {
-    loadAdminData();
+    const checkAdminAuth = () => {
+      try {
+        const raw = localStorage.getItem("sing_user");
+        if (!raw) {
+          setAdminUser(null);
+          setAllSearches([]);
+          setAllOrders([]);
+          setShowsList([]);
+          setAlertsList([]);
+          setLoading(false);
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        const isAdmin =
+          parsed?.role === "ADMIN" ||
+          parsed?.email?.toLowerCase() === "donaldson.nunes@gmail.com" ||
+          parsed?.email?.toLowerCase() === "admin@singviagens.com.br";
+        if (isAdmin) {
+          setAdminUser(parsed);
+          loadAdminData();
+        } else {
+          setAdminUser(null);
+          setAllSearches([]);
+          setAllOrders([]);
+          setShowsList([]);
+          setAlertsList([]);
+          setLoading(false);
+        }
+      } catch {
+        setAdminUser(null);
+        setLoading(false);
+      }
+    };
+
+    checkAdminAuth();
+    window.addEventListener("sing-auth-change", checkAdminAuth);
+    return () => window.removeEventListener("sing-auth-change", checkAdminAuth);
   }, []);
 
   // Filtragem de Pesquisas e Pedidos pelo Período Informado (startDate -> endDate)
@@ -284,6 +321,31 @@ export default function AdminPricingPage() {
 
   const formatBRL = (val: number) =>
     val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  if (!adminUser) {
+    return (
+      <div className="bg-[#FAF8F5] min-h-screen py-20 px-4 flex items-center justify-center">
+        <div className="max-w-md w-full rounded-2xl bg-white border border-gray-200 p-8 text-center space-y-4 shadow-md">
+          <div className="w-12 h-12 rounded-2xl bg-[#172C3B] text-[#BD9472] flex items-center justify-center mx-auto font-bold">
+            <SlidersHorizontal className="w-5 h-5" />
+          </div>
+          <h1 className="text-xl font-extrabold text-[#172C3B]">
+            Acesso Exclusivo para Administrador Logado
+          </h1>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            As informações de Dashboard Gerencial, Histórico de Pesquisas, Pedidos e Precificação são restritas e só podem ser visualizadas após fazer login como Administrador.
+          </p>
+          <Link
+            href="/conta"
+            className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#172C3B] text-[#E8E2D9] font-bold text-xs hover:bg-[#BD9472] hover:text-[#0E1B24] transition"
+          >
+            <span>Fazer Login em Minha Conta</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen pb-20 text-[#09090B]">

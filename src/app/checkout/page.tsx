@@ -34,10 +34,11 @@ export default function CheckoutPage() {
     "CHECKOUT_FLIGHT"
   );
   const [selectedData, setSelectedData] = useState<any>(null);
-  const [customerName, setCustomerName] = useState("Donaldson Nunes");
-  const [customerEmail, setCustomerEmail] = useState("donaldson.nunes@gmail.com");
-  const [customerPhone, setCustomerPhone] = useState("(11) 99999-0000");
-  const [payerCpf, setPayerCpf] = useState("284.910.378-00");
+  const [loggedUser, setLoggedUser] = useState<any>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [payerCpf, setPayerCpf] = useState("");
 
   const [frequentPassengers, setFrequentPassengers] = useState<any[]>([]);
   const [savingInstantIdx, setSavingInstantIdx] = useState<number | null>(null);
@@ -48,17 +49,17 @@ export default function CheckoutPage() {
   const [passengersDetails, setPassengersDetails] = useState<PassengerFormRow[]>([
     {
       typeLabel: "Adulto 1 (Titular)",
-      frequentPassengerId: "PAX-DON-1",
-      firstName: "Donaldson",
-      lastName: "Nunes",
-      birthDate: "1985-04-12",
-      cpf: "284.910.378-00",
-      email: "donaldson.nunes@gmail.com",
-      phone: "(11) 99999-0000",
-      passport: "FP892341",
+      frequentPassengerId: "",
+      firstName: "",
+      lastName: "",
+      birthDate: "",
+      cpf: "",
+      email: "",
+      phone: "",
+      passport: "",
       saveAsFrequentPassenger: true,
-      fullName: "Donaldson Nunes",
-      documentCpfOrPassport: "284.910.378-00",
+      fullName: "",
+      documentCpfOrPassport: "",
     },
   ]);
 
@@ -71,6 +72,10 @@ export default function CheckoutPage() {
     targetEmail: string,
     initialRows?: PassengerFormRow[]
   ) => {
+    if (!targetEmail) {
+      setFrequentPassengers([]);
+      return;
+    }
     try {
       const res = await fetch(
         `/api/account?email=${encodeURIComponent(targetEmail)}`
@@ -89,7 +94,7 @@ export default function CheckoutPage() {
           frequentPassengerId: firstSaved.id,
           firstName: firstSaved.firstName || "",
           lastName: firstSaved.lastName || "",
-          birthDate: firstSaved.birthDate || "1985-04-12",
+          birthDate: firstSaved.birthDate || "",
           cpf: firstSaved.cpf || "",
           email: firstSaved.email || "",
           phone: firstSaved.phone || "",
@@ -101,6 +106,9 @@ export default function CheckoutPage() {
           documentCpfOrPassport: firstSaved.cpf || firstSaved.passport || "",
         };
         setPassengersDetails(updatedRows);
+        if (firstSaved.cpf) {
+          setPayerCpf(firstSaved.cpf);
+        }
       }
     } catch {
       // fallback silencioso
@@ -108,102 +116,139 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("sing_user");
-    let defaultName = "Donaldson Nunes";
-    let defaultEmail = "donaldson.nunes@gmail.com";
-    let defaultPhone = "(11) 99999-0000";
+    const syncCheckoutAuth = () => {
+      const savedUser = localStorage.getItem("sing_user");
+      let parsedUser: any = null;
+      let defaultName = "";
+      let defaultEmail = "";
+      let defaultPhone = "";
+      let defaultCpf = "";
+      let defaultBirthDate = "";
+      let defaultFirst = "";
+      let defaultLast = "";
 
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        if (parsedUser.name) defaultName = parsedUser.name;
-        if (parsedUser.email) defaultEmail = parsedUser.email;
-        if (parsedUser.phone) defaultPhone = parsedUser.phone;
-        setCustomerName(defaultName);
-        setCustomerEmail(defaultEmail);
-        setCustomerPhone(defaultPhone);
-      } catch {
-        // ignore
-      }
-    }
+      if (savedUser) {
+        try {
+          parsedUser = JSON.parse(savedUser);
+          if (parsedUser?.email) {
+            setLoggedUser(parsedUser);
+            defaultName = parsedUser.name || "";
+            defaultEmail = parsedUser.email || "";
+            defaultPhone = parsedUser.phone || "";
+            defaultCpf = parsedUser.cpf || "";
+            defaultBirthDate = parsedUser.birthDate || "";
+            const nameParts = defaultName.trim().split(/\s+/);
+            defaultFirst = parsedUser.firstName || nameParts[0] || "";
+            defaultLast =
+              parsedUser.lastName || nameParts.slice(1).join(" ") || "";
 
-    const nameParts = defaultName.trim().split(/\s+/);
-    const defaultFirst = nameParts[0] || "Donaldson";
-    const defaultLast = nameParts.slice(1).join(" ") || "Nunes";
-
-    let computedRows: PassengerFormRow[] = [
-      {
-        typeLabel: "Adulto 1 (Titular)",
-        frequentPassengerId: "",
-        firstName: defaultFirst,
-        lastName: defaultLast,
-        birthDate: "1985-04-12",
-        cpf: "284.910.378-00",
-        email: defaultEmail,
-        phone: defaultPhone,
-        passport: "",
-        saveAsFrequentPassenger: true,
-        fullName: `${defaultFirst} ${defaultLast}`.trim(),
-        documentCpfOrPassport: "284.910.378-00",
-      },
-    ];
-
-    const raw = localStorage.getItem("sing_selected_checkout");
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        setSelectedData(parsed);
-
-        const adultsCount = Math.max(1, Number(parsed?.searchParams?.adults) || 1);
-        const childrenAges: number[] = Array.isArray(parsed?.searchParams?.childrenAges)
-          ? parsed.searchParams.childrenAges
-          : [];
-
-        const rows: PassengerFormRow[] = [];
-        for (let i = 0; i < adultsCount; i++) {
-          rows.push({
-            typeLabel: i === 0 ? "Adulto 1 (Titular)" : `Adulto ${i + 1}`,
-            frequentPassengerId: "",
-            firstName: i === 0 ? defaultFirst : "",
-            lastName: i === 0 ? defaultLast : "",
-            birthDate: i === 0 ? "1985-04-12" : "1990-01-01",
-            cpf: i === 0 ? "284.910.378-00" : "",
-            email: i === 0 ? defaultEmail : "",
-            phone: i === 0 ? defaultPhone : "",
-            passport: "",
-            saveAsFrequentPassenger: true,
-            fullName: i === 0 ? `${defaultFirst} ${defaultLast}`.trim() : "",
-            documentCpfOrPassport: i === 0 ? "284.910.378-00" : "",
-          });
+            setCustomerName(defaultName);
+            setCustomerEmail(defaultEmail);
+            setCustomerPhone(defaultPhone);
+            setPayerCpf(defaultCpf);
+          } else {
+            setLoggedUser(null);
+          }
+        } catch {
+          setLoggedUser(null);
         }
-        childrenAges.forEach((age, idx) => {
-          rows.push({
-            typeLabel:
-              age < 2
-                ? `Bebê ${idx + 1} (${age} ano)`
-                : `Criança ${idx + 1} (${age} anos)`,
-            frequentPassengerId: "",
-            firstName: "",
-            lastName: "",
-            birthDate: "2018-06-10",
-            cpf: "",
-            email: "",
-            phone: "",
-            passport: "",
-            saveAsFrequentPassenger: true,
-            fullName: "",
-            documentCpfOrPassport: "",
-          });
-        });
-
-        computedRows = rows;
-        setPassengersDetails(rows);
-      } catch {
-        setSelectedData(null);
+      } else {
+        setLoggedUser(null);
+        setCustomerName("");
+        setCustomerEmail("");
+        setCustomerPhone("");
+        setPayerCpf("");
+        setFrequentPassengers([]);
       }
-    }
 
-    loadFrequentPassengersForEmail(defaultEmail, computedRows);
+      let computedRows: PassengerFormRow[] = [
+        {
+          typeLabel: "Adulto 1 (Titular)",
+          frequentPassengerId: "",
+          firstName: defaultFirst,
+          lastName: defaultLast,
+          birthDate: defaultBirthDate,
+          cpf: defaultCpf,
+          email: defaultEmail,
+          phone: defaultPhone,
+          passport: "",
+          saveAsFrequentPassenger: true,
+          fullName: `${defaultFirst} ${defaultLast}`.trim(),
+          documentCpfOrPassport: defaultCpf,
+        },
+      ];
+
+      const raw = localStorage.getItem("sing_selected_checkout");
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          setSelectedData(parsed);
+
+          const adultsCount = Math.max(
+            1,
+            Number(parsed?.searchParams?.adults) || 1
+          );
+          const childrenAges: number[] = Array.isArray(
+            parsed?.searchParams?.childrenAges
+          )
+            ? parsed.searchParams.childrenAges
+            : [];
+
+          const rows: PassengerFormRow[] = [];
+          for (let i = 0; i < adultsCount; i++) {
+            rows.push({
+              typeLabel: i === 0 ? "Adulto 1 (Titular)" : `Adulto ${i + 1}`,
+              frequentPassengerId: "",
+              firstName: i === 0 ? defaultFirst : "",
+              lastName: i === 0 ? defaultLast : "",
+              birthDate: i === 0 ? defaultBirthDate : "",
+              cpf: i === 0 ? defaultCpf : "",
+              email: i === 0 ? defaultEmail : "",
+              phone: i === 0 ? defaultPhone : "",
+              passport: "",
+              saveAsFrequentPassenger: true,
+              fullName: i === 0 ? `${defaultFirst} ${defaultLast}`.trim() : "",
+              documentCpfOrPassport: i === 0 ? defaultCpf : "",
+            });
+          }
+          childrenAges.forEach((age, idx) => {
+            rows.push({
+              typeLabel:
+                age < 2
+                  ? `Bebê ${idx + 1} (${age} ano)`
+                  : `Criança ${idx + 1} (${age} anos)`,
+              frequentPassengerId: "",
+              firstName: "",
+              lastName: "",
+              birthDate: "",
+              cpf: "",
+              email: "",
+              phone: "",
+              passport: "",
+              saveAsFrequentPassenger: true,
+              fullName: "",
+              documentCpfOrPassport: "",
+            });
+          });
+
+          computedRows = rows;
+        } catch {
+          setSelectedData(null);
+        }
+      }
+
+      setPassengersDetails(computedRows);
+
+      if (defaultEmail) {
+        loadFrequentPassengersForEmail(defaultEmail, computedRows);
+      } else {
+        setFrequentPassengers([]);
+      }
+    };
+
+    syncCheckoutAuth();
+    window.addEventListener("sing-auth-change", syncCheckoutAuth);
+    return () => window.removeEventListener("sing-auth-change", syncCheckoutAuth);
   }, []);
 
   const handleSelectFrequentPassenger = (rowIdx: number, selectedId: string) => {

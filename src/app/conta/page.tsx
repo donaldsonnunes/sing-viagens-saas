@@ -231,18 +231,25 @@ export default function ContaPage() {
       }
     }
 
-    // 2. Verifica sessão salva localmente
+    // 2. Verifica sessão salva localmente (só carrega dados se o usuário estiver logado)
     const saved = localStorage.getItem("sing_user");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setUser(parsed);
-        loadAccountData(parsed.email);
+        if (parsed?.email) {
+          setUser(parsed);
+          loadAccountData(parsed.email);
+        } else {
+          setUser(null);
+        }
       } catch {
         setUser(null);
       }
     } else {
-      loadAccountData("donaldson.nunes@gmail.com");
+      setUser(null);
+      setSearchHistory([]);
+      setOrders([]);
+      setFrequentPassengers([]);
     }
   }, []);
 
@@ -322,6 +329,11 @@ export default function ContaPage() {
   const handleLogout = () => {
     localStorage.removeItem("sing_user");
     setUser(null);
+    setSearchHistory([]);
+    setOrders([]);
+    setFrequentPassengers([]);
+    setSelectedVoucherOrder(null);
+    resetPaxForm();
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("sing-auth-change"));
     }
@@ -739,10 +751,12 @@ export default function ContaPage() {
           )}
         </div>
 
-        {/* Coluna Direita: Dashboard do Usuário + Histórico de Pesquisas e Compras */}
+        {/* Coluna Direita: Visível EXCLUSIVAMENTE para o usuário logado */}
         <div className="lg:col-span-8 space-y-8">
-          {/* DASHBOARD DO USUÁRIO: Pesquisas, Passagens, Cia x Sing e Economia */}
-          <div className="rounded-2xl bg-[#09090B] text-white p-6 sm:p-7 border border-[#BD9472]/35 shadow-lg space-y-6">
+          {user ? (
+            <>
+              {/* DASHBOARD DO USUÁRIO: Pesquisas, Passagens, Cia x Sing e Economia */}
+              <div className="rounded-2xl bg-[#09090B] text-white p-6 sm:p-7 border border-[#BD9472]/35 shadow-lg space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4">
               <div>
                 <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-[#BD9472]">
@@ -1245,6 +1259,54 @@ export default function ContaPage() {
               })}
             </div>
           </div>
+            </>
+          ) : (
+            <div className="rounded-2xl bg-white border border-gray-200 p-8 sm:p-10 shadow-sm text-center space-y-5">
+              <div className="w-14 h-14 rounded-2xl bg-[#172C3B] text-[#BD9472] flex items-center justify-center mx-auto shadow">
+                <Lock className="w-6 h-6" />
+              </div>
+              <div className="space-y-2 max-w-lg mx-auto">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-[#BD9472]">
+                  Ambiente Privado e Protegido
+                </span>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-[#172C3B]">
+                  Faça Login para Acessar Seu Dashboard, Passageiros e Histórico
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                  Suas informações de <strong>Dashboard de Economia</strong>,{" "}
+                  <strong>Passageiros Frequentes cadastrados</strong>,{" "}
+                  <strong>Histórico de Pesquisas</strong> e{" "}
+                  <strong>Bilhetes Emitidos (PNR)</strong> são exclusivas da sua conta e ficam visíveis somente após a sua autenticação ao lado.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 text-left max-w-2xl mx-auto">
+                <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-gray-200">
+                  <div className="text-xs font-extrabold text-[#172C3B]">
+                    1. Dashboard Pessoal
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Visualize sua economia acumulada comparando Cia Aérea vs. Sing.
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-gray-200">
+                  <div className="text-xs font-extrabold text-[#172C3B]">
+                    2. Passageiros Frequentes
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Seus passageiros salvos sem limite por conta para compras em 1 clique.
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-gray-200">
+                  <div className="text-xs font-extrabold text-[#172C3B]">
+                    3. Pesquisas & E-Tickets
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Retome pesquisas anteriores e baixe seus Vouchers oficiais em PDF.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

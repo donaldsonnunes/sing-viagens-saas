@@ -4,6 +4,16 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.9.2] — 2026-11-15
+### Corrigido (Isolamento de Dados e Ocultação de Dashboards, Passageiros e Históricos antes do Login e após Logout)
+- **Proteção de Dados Vinculados à Conta em `/conta`, `/login`, `/checkout` e `/admin` (`src/app/conta/page.tsx`, `src/app/api/account/route.ts`, `src/app/checkout/page.tsx`, `src/app/admin/page.tsx`)**:
+  - Antes do login ou ao clicar em **"Sair"**, todos os estados de sessão (`user`, `searchHistory`, `orders`, `frequentPassengers`) são limpos e **nenhuma informação de dashboard, lista de passageiros frequentes, histórico de pesquisas ou compras é exibida**.
+  - Na API `GET /api/account`, removidos os *fallbacks* de demonstração que exibiam dados de outros usuários quando a conta não possuía buscas ou pedidos: cada usuário visualiza estritamente os seus próprios registros.
+  - No `/checkout`, os dados de titular e passageiros frequentes só são pré-carregados quando o usuário está autenticado.
+  - No `/admin`, a página bloqueia a exibição do dashboard gerencial caso o usuário não esteja autenticado como Administrador.
+
+---
+
 ## [2.9.1] — 2026-11-15
 ### Adicionado (Replicação Automática dos Dados do Cadastro de Usuário para Passageiro Frequente)
 - **Formulário Unificado de Cadastro de Conta + Perfil de Passageiro (`src/app/conta/page.tsx`, `src/app/api/account/route.ts`, `src/lib/db.ts`, `supabase/migrations/20261115055800_add_passenger_fields_to_users_and_replicate.sql`)**:

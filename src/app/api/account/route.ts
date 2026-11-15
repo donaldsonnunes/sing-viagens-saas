@@ -18,44 +18,67 @@ import { bookAirfareOnApiViagens } from "@/lib/apiViagensService";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const email = searchParams.get("email") || "cliente@singviagens.com.br";
+  const email = (searchParams.get("email") || "").trim().toLowerCase();
+
+  if (!email) {
+    return NextResponse.json(
+      {
+        user: null,
+        searchHistory: [],
+        orders: [],
+        frequentPassengers: [],
+      },
+      { status: 401 }
+    );
+  }
+
   const [db, frequentPassengers] = await Promise.all([
     fetchDatabaseFromSupabase(),
     fetchFrequentPassengersFromSupabase(email),
   ]);
 
-  const user =
-    db.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ||
-    db.users[1] ||
-    db.users[0];
+  const user = db.users.find((u) => u.email.toLowerCase() === email);
+
+  if (!user) {
+    return NextResponse.json(
+      {
+        user: null,
+        searchHistory: [],
+        orders: [],
+        frequentPassengers: [],
+      },
+      { status: 404 }
+    );
+  }
 
   const isAdmin = user.role === "ADMIN" || isSuperAdminEmail(user.email);
 
-  const searchHistory = isAdmin
-    ? db.searchHistory
-    : db.searchHistory.filter(
-        (s) =>
-          s.userEmail.toLowerCase() === user.email.toLowerCase() || s.userId === user.id
-      );
-  const orders = isAdmin
-    ? db.orders
-    : db.orders.filter(
-        (o) =>
-          o.userEmail.toLowerCase() === user.email.toLowerCase() || o.userId === user.id
-      );
+  const searchHistory = db.searchHistory.filter(
+    (s) =>
+      s.userEmail.toLowerCase() === user.email.toLowerCase() || s.userId === user.id
+  );
+  const orders = db.orders.filter(
+    (o) =>
+      o.userEmail.toLowerCase() === user.email.toLowerCase() || o.userId === user.id
+  );
 
   return NextResponse.json({
     user: {
       id: user.id,
       name: user.name,
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      birthDate: user.birthDate || "",
+      cpf: user.cpf || "",
+      passport: user.passport || "",
       email: user.email,
       phone: user.phone,
       role: isAdmin ? "ADMIN" : "CUSTOMER",
       authProvider: user.authProvider || "EMAIL",
       avatarUrl: user.avatarUrl,
     },
-    searchHistory: searchHistory.length > 0 ? searchHistory : db.searchHistory.slice(0, 8),
-    orders: orders.length > 0 ? orders : db.orders,
+    searchHistory,
+    orders,
     frequentPassengers,
   });
 }
