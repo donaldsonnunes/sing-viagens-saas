@@ -23,6 +23,7 @@ export function PortalShowsAndAlertSection() {
   const [originIata, setOriginIata] = useState("GRU");
   const [destinationIata, setDestinationIata] = useState("GIG");
   const [targetMonthOrDate, setTargetMonthOrDate] = useState("Setembro/2026");
+  const [targetDepartureDate, setTargetDepartureDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [alertSaved, setAlertSaved] = useState(false);
 
@@ -54,6 +55,7 @@ export function PortalShowsAndAlertSection() {
           originIata,
           destinationIata,
           targetMonthOrDate,
+          targetDepartureDate,
         }),
       });
       if (res.ok) {
@@ -227,6 +229,21 @@ export function PortalShowsAndAlertSection() {
                     className="w-full rounded-xl bg-white/10 border border-white/15 px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-400 focus:outline-none focus:border-[#BD9472]"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#E8E2D9] mb-1">
+                  Data Prevista de Ida do Voo{" "}
+                  <span className="font-normal text-zinc-400">
+                    (opcional — usada para varredura diária automática até o embarque)
+                  </span>
+                </label>
+                <input
+                  type="date"
+                  value={targetDepartureDate}
+                  onChange={(e) => setTargetDepartureDate(e.target.value)}
+                  className="w-full rounded-xl bg-white/10 border border-white/15 px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#BD9472]"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">

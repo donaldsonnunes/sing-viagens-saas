@@ -116,6 +116,13 @@ export interface PriceAlertLeadItem {
   originIata: string;
   destinationIata: string;
   targetMonthOrDate: string;
+  targetDepartureDate?: string;
+  lastCheckedAt?: string;
+  lowestSeenPrice?: number | null;
+  baselinePrice?: number | null;
+  alertTriggered?: boolean;
+  triggeredAt?: string;
+  lastCheckSource?: string;
   status: "NOVO" | "ATENDIDO" | "CONVERTIDO";
   createdAt: string;
 }

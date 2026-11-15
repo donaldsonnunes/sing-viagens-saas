@@ -115,6 +115,19 @@ export async function GET() {
           originIata: a.origin_iata,
           destinationIata: a.destination_iata,
           targetMonthOrDate: a.target_month_or_date,
+          targetDepartureDate: a.target_departure_date || "",
+          lastCheckedAt: a.last_checked_at || undefined,
+          lowestSeenPrice:
+            a.lowest_seen_price !== null && a.lowest_seen_price !== undefined
+              ? Number(a.lowest_seen_price)
+              : null,
+          baselinePrice:
+            a.baseline_price !== null && a.baseline_price !== undefined
+              ? Number(a.baseline_price)
+              : null,
+          alertTriggered: Boolean(a.alert_triggered),
+          triggeredAt: a.triggered_at || undefined,
+          lastCheckSource: a.last_check_source || "",
           status: a.status || "NOVO",
           createdAt: a.created_at,
         }))
@@ -142,6 +155,9 @@ export async function POST(request: Request) {
         origin_iata: (body.originIata || "GRU").toUpperCase(),
         destination_iata: (body.destinationIata || "GIG").toUpperCase(),
         target_month_or_date: body.targetMonthOrDate || "2026/2027",
+        target_departure_date: String(body.targetDepartureDate || "").trim(),
+        alert_triggered: false,
+        last_check_source: "",
         status: "NOVO",
         created_at: new Date().toISOString(),
       };
