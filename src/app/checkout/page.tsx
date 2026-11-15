@@ -434,6 +434,22 @@ export default function CheckoutPage() {
     }
 
     const offer = selectedData?.offer;
+    const baggageExtraTotal = Number(
+      selectedData?.baggageExtras?.baggageExtraTotal || 0
+    );
+    const baseFlightPrice = Number(
+      selectedData?.baseFlightPrice ??
+        (offer?.pricingBreakdown?.singFinalSalePriceTotal
+          ? offer.pricingBreakdown.singFinalSalePriceTotal - baggageExtraTotal
+          : 1842.5)
+    );
+    const baseAirlineRef = Number(
+      selectedData?.baseAirlineRef ??
+        (offer?.airlineDirectComparison?.[0]?.directWebsitePriceTotal
+          ? offer.airlineDirectComparison[0].directWebsitePriceTotal -
+            baggageExtraTotal
+          : 2190)
+    );
     const adultsCount = selectedData?.searchParams?.adults || 1;
     const minorsCount = selectedData?.searchParams?.childrenAges?.length || 0;
 
@@ -467,10 +483,11 @@ export default function CheckoutPage() {
             : ""
         }`,
         passengersDetails: normalizedPassengers,
-        singTotalPrice: offer?.pricingBreakdown?.singFinalSalePriceTotal || 1842.5,
-        airlineDirectReferencePrice:
-          offer?.airlineDirectComparison?.[0]?.directWebsitePriceTotal || 2190,
-        savingsAmount: offer?.bestSavingsVsOperatingAirline || 347.5,
+        singTotalPrice: baseFlightPrice,
+        airlineDirectReferencePrice: baseAirlineRef,
+        savingsAmount:
+          offer?.bestSavingsVsOperatingAirline ??
+          Math.max(0, baseAirlineRef - baseFlightPrice),
         milesCostTotal: offer?.pricingBreakdown?.totalMilesCostWithTaxes || 1495,
         singProfitAmount: offer?.pricingBreakdown?.singProfitAmount || 347.5,
         paymentMethod,

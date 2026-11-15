@@ -528,10 +528,12 @@ export default function ContaPage() {
     (acc, o) => acc + Number(o.singTotalPrice || 0),
     0
   );
-  const totalAirlineDirectCost = confirmedOrders.reduce(
-    (acc, o) => acc + Number(o.airlineDirectReferencePrice || 0),
-    0
-  );
+  const totalAirlineDirectCost = confirmedOrders.reduce((acc, o) => {
+    const ref = Number(o.airlineDirectReferencePrice || 0);
+    const paid = Number(o.singTotalPrice || 0);
+    const sav = Number(o.savingsAmount || 0);
+    return acc + (ref < paid && sav > 0 ? paid + sav : ref);
+  }, 0);
   const totalSavedAmount = Math.max(0, totalAirlineDirectCost - totalSingSpent);
   const savingsPercentage =
     totalAirlineDirectCost > 0

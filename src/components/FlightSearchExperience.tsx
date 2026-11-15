@@ -250,7 +250,24 @@ export function FlightSearchExperience({
         pricingBreakdown: {
           ...selectedOutboundOffer.pricingBreakdown,
           singFinalSalePriceTotal: baseFlightPrice + baggageExtraTotal,
+          airlineDirectCashPriceTotal:
+            (selectedOutboundOffer.pricingBreakdown.airlineDirectCashPriceTotal ||
+              baseAirlineRef) + baggageExtraTotal,
         },
+        airlineDirectComparison: Array.isArray(
+          selectedOutboundOffer.airlineDirectComparison
+        )
+          ? selectedOutboundOffer.airlineDirectComparison.map((comp: any, idx: number) =>
+              idx === 0
+                ? {
+                    ...comp,
+                    directWebsitePriceTotal:
+                      Number(comp.directWebsitePriceTotal || baseAirlineRef) +
+                      baggageExtraTotal,
+                  }
+                : comp
+            )
+          : selectedOutboundOffer.airlineDirectComparison,
       },
       outboundOffer: selectedOutboundOffer,
       returnOffer: selectedReturnOffer,
