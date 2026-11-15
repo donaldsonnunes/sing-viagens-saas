@@ -1636,7 +1636,7 @@ export default function ContaPage() {
                   Suas informações de <strong>Dashboard de Economia</strong>,{" "}
                   <strong>Passageiros Frequentes cadastrados</strong>,{" "}
                   <strong>Histórico de Pesquisas</strong> e{" "}
-                  <strong>Bilhetes Emitidos (PNR)</strong> são exclusivas da sua conta e ficam visíveis somente após a sua autenticação ao lado.
+                  <strong>Bilhetes Emitidos (PNR)</strong> só ficam visíveis após a sua autenticação.
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 text-left max-w-2xl mx-auto">
