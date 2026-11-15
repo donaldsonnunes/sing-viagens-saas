@@ -519,6 +519,10 @@ export default function CheckoutPage() {
         setFrequentPassengers(data.frequentPassengers);
       }
       if (data.order) {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("sing_active_search");
+          localStorage.removeItem("sing_selected_checkout");
+        }
         setConfirmedOrder(data.order);
         setShowAnacConsentModal(false);
       }
