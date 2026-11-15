@@ -642,7 +642,7 @@ export const DEFAULT_FREQUENT_PASSENGERS: FrequentPassengerItem[] = [
     firstName: "Donaldson",
     lastName: "Nunes",
     birthDate: "1985-04-12",
-    cpf: "284.910.378-00",
+    cpf: "284.910.378-02",
     email: "donaldson.nunes@gmail.com",
     phone: "(11) 99999-0000",
     passport: "FP892341",

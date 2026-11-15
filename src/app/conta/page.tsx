@@ -101,7 +101,7 @@ export default function ContaPage() {
   const [socialFirstName, setSocialFirstName] = useState("Donaldson");
   const [socialLastName, setSocialLastName] = useState("Nunes");
   const [socialBirthDate, setSocialBirthDate] = useState("1985-04-12");
-  const [socialCpf, setSocialCpf] = useState("284.910.378-00");
+  const [socialCpf, setSocialCpf] = useState("284.910.378-02");
   const [socialPhone, setSocialPhone] = useState("(11) 99999-0000");
   const [socialPassport, setSocialPassport] = useState("FP892341");
   const [socialPassportExpiry, setSocialPassportExpiry] = useState("2032-06-15");
@@ -769,13 +769,15 @@ export default function ContaPage() {
                   type="button"
                   onClick={() => {
                     setSocialModalProvider("GOOGLE");
+                    setAuthError("");
                     setSocialEmail("donaldson.nunes@gmail.com");
                     setSocialFirstName("Donaldson");
                     setSocialLastName("Nunes");
                     setSocialBirthDate("1985-04-12");
-                    setSocialCpf("284.910.378-00");
+                    setSocialCpf("284.910.378-02");
                     setSocialPhone("(11) 99999-0000");
                     setSocialPassport("FP892341");
+                    setSocialPassportExpiry("2032-06-15");
                   }}
                   className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white border border-gray-300 hover:border-[#172C3B] hover:bg-gray-50 text-[#09090B] font-bold text-xs sm:text-sm transition shadow-2xs"
                 >
@@ -787,13 +789,15 @@ export default function ContaPage() {
                   type="button"
                   onClick={() => {
                     setSocialModalProvider("APPLE");
+                    setAuthError("");
                     setSocialEmail("donaldson.nunes@gmail.com");
                     setSocialFirstName("Donaldson");
                     setSocialLastName("Nunes");
                     setSocialBirthDate("1985-04-12");
-                    setSocialCpf("284.910.378-00");
+                    setSocialCpf("284.910.378-02");
                     setSocialPhone("(11) 99999-0000");
                     setSocialPassport("FP892341");
+                    setSocialPassportExpiry("2032-06-15");
                   }}
                   className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-[#09090B] hover:bg-[#172C3B] text-white font-bold text-xs sm:text-sm transition shadow-2xs"
                 >
@@ -1671,9 +1675,10 @@ export default function ContaPage() {
                     "Donaldson",
                     "Nunes",
                     "1985-04-12",
-                    "284.910.378-00",
+                    "284.910.378-02",
                     "(11) 99999-0000",
-                    "FP892341"
+                    "FP892341",
+                    "2032-06-15"
                   )
                 }
                 className="w-full p-3 rounded-xl border border-[#BD9472] bg-[#FAF8F5] hover:bg-[#E8E2D9]/50 transition flex items-center justify-between text-left"
@@ -1797,6 +1802,12 @@ export default function ContaPage() {
                 }
                 className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
               />
+
+              {authError && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+                  {authError}
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <button
