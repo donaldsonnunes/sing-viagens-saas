@@ -1,0 +1,72 @@
+name: Daily Alert Crawler (Zero API Cost)
+
+on:
+  # Agendamento padrão: todo dia às 11:00 UTC (08:00 BRT).
+  # Exemplos para parametrizar o cron caso queira outra frequência:
+  # - A cada 12h: "0 11,23 * * *"
+  # - A cada 6h:  "0 */6 * * *"
+  # - Seg a Sex:  "0 11 * * 1-5"
+  schedule:
+    - cron: "0 11 * * *"
+
+  # Execução manual parametrizável pela aba Actions do GitHub
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: "Ativar execução do crawler (true/false)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      only_cache_sweep:
+        description: "Executar apenas CACHE_SWEEP sem abrir navegador"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      max_targets:
+        description: "Máximo de trechos únicos por rodada"
+        required: false
+        default: "15"
+        type: string
+      delay_ms:
+        description: "Intervalo em ms entre consultas (anti-bloqueio)"
+        required: false
+        default: "4500"
+        type: string
+
+jobs:
+  crawl-alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Permite pausar via GitHub Variables (Settings > Variables > Actions > CRAWLER_ENABLED=false)
+    if: ${{ (github.event.inputs.enabled || vars.CRAWLER_ENABLED || 'true') != 'false' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Playwright & Chromium (isolated from Vercel build)
+        if: ${{ (github.event.inputs.only_cache_sweep || vars.CRAWLER_ONLY_CACHE_SWEEP || 'false') != 'true' }}
+        run: |
+          npm install --no-save playwright
+          npx playwright install chromium
+
+      - name: Run parameterizable alert crawler
+        env:
+          SING_BASE_URL: ${{ vars.SING_BASE_URL || 'https://www.singviagens.com.br' }}
+          CRAWLER_ENABLED: ${{ github.event.inputs.enabled || vars.CRAWLER_ENABLED || 'true' }}
+          CRAWLER_ONLY_CACHE_SWEEP: ${{ github.event.inputs.only_cache_sweep || vars.CRAWLER_ONLY_CACHE_SWEEP || 'false' }}
+          CRAWLER_MAX_TARGETS: ${{ github.event.inputs.max_targets || vars.CRAWLER_MAX_TARGETS || '15' }}
+          CRAWLER_DELAY_MS: ${{ github.event.inputs.delay_ms || vars.CRAWLER_DELAY_MS || '4500' }}
+          CRAWLER_HEADLESS: "true"
+        run: node scripts/daily-alert-crawler.mjs

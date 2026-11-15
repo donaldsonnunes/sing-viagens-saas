@@ -238,7 +238,9 @@ export async function GET(request: Request) {
       }
     }
 
-    const targets = Array.from(grouped.values());
+    const targets = Array.from(grouped.values()).sort(
+      (a, b) => b.alertsCount - a.alertsCount
+    );
     return NextResponse.json({
       today: todayIso,
       activeAlertsCount: activeRows.length,
