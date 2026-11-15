@@ -121,6 +121,11 @@ export interface PriceAlertLeadItem {
 export interface UserAccount {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+  cpf?: string;
+  passport?: string;
   email: string;
   passwordHash: string;
   phone: string;
@@ -363,6 +368,11 @@ export async function fetchDatabaseFromSupabase(): Promise<DatabaseSchema> {
         ? userRows.map((u: any) => ({
             id: u.id,
             name: u.name,
+            firstName: u.first_name || "",
+            lastName: u.last_name || "",
+            birthDate: u.birth_date || "",
+            cpf: u.cpf || "",
+            passport: u.passport || "",
             email: u.email,
             passwordHash: u.password_hash,
             phone: u.phone || "",
@@ -501,6 +511,11 @@ export async function insertUserToSupabase(user: UserAccount): Promise<void> {
       body: JSON.stringify({
         id: user.id,
         name: user.name,
+        first_name: user.firstName || "",
+        last_name: user.lastName || "",
+        birth_date: user.birthDate || "",
+        cpf: user.cpf || "",
+        passport: user.passport || "",
         email: user.email,
         password_hash: user.passwordHash,
         phone: user.phone,

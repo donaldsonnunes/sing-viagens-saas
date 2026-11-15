@@ -95,29 +95,76 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Cadastro de Nova Conta por E-mail e Senha
+    // 2. Cadastro de Nova Conta por E-mail e Senha (Já replicando para Passageiro Frequente)
     if (body.action === "REGISTER") {
       const normalizedEmail = (body.email || "").trim().toLowerCase();
       if (!normalizedEmail) {
         return NextResponse.json({ error: "Informe um e-mail válido." }, { status: 400 });
       }
 
+      const fullParts = String(body.name || "")
+        .trim()
+        .split(/\s+/);
+      const firstName = String(body.firstName || fullParts[0] || "").trim();
+      const lastName = String(
+        body.lastName || fullParts.slice(1).join(" ") || ""
+      ).trim();
+      const birthDate = String(body.birthDate || "").trim();
+      const cpf = String(body.cpf || "").trim();
+      const phone = String(body.phone || "").trim();
+      const passport = String(body.passport || "")
+        .trim()
+        .toUpperCase();
+
+      if (!firstName || !lastName || !birthDate || !cpf) {
+        return NextResponse.json(
+          {
+            error:
+              "Preencha Nome, Sobrenome, Data de Nascimento e CPF para criar sua conta e cadastrar seu perfil de passageiro.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const fullName = `${firstName} ${lastName}`.trim();
       const existing = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
       const role = isSuperAdminEmail(normalizedEmail) ? "ADMIN" : "CUSTOMER";
 
       if (existing) {
-        // Se for o Administrador Master (donaldson.nunes@gmail.com), atualiza a senha/dados e autentica
+        // Se for o Administrador Master (donaldson.nunes@gmail.com), atualiza a senha/dados e replica no passageiro
         if (isSuperAdminEmail(normalizedEmail)) {
-          existing.name = body.name || existing.name || "Donaldson Nunes";
+          existing.name = fullName || existing.name || "Donaldson Nunes";
+          existing.firstName = firstName;
+          existing.lastName = lastName;
+          existing.birthDate = birthDate;
+          existing.cpf = cpf;
+          existing.passport = passport;
           existing.passwordHash = body.password || existing.passwordHash;
-          existing.phone = body.phone || existing.phone;
+          existing.phone = phone || existing.phone;
           existing.role = "ADMIN";
           await insertUserToSupabase(existing);
+          await upsertFrequentPassengerToSupabase({
+            id: "PAX-DON-1",
+            userEmail: normalizedEmail,
+            firstName,
+            lastName,
+            birthDate,
+            cpf,
+            email: normalizedEmail,
+            phone,
+            passport,
+            createdAt: new Date().toISOString(),
+          });
           writeDb(db);
           return NextResponse.json({
             user: {
               id: existing.id,
               name: existing.name,
+              firstName,
+              lastName,
+              birthDate,
+              cpf,
+              passport,
               email: existing.email,
               phone: existing.phone,
               role: "ADMIN",
@@ -134,21 +181,46 @@ export async function POST(request: Request) {
 
       const newUser = {
         id: `usr-${Date.now()}`,
-        name: body.name || "Viajante Sing",
+        name: fullName || "Viajante Sing",
+        firstName,
+        lastName,
+        birthDate,
+        cpf,
+        passport,
         email: normalizedEmail,
         passwordHash: body.password || "123456",
-        phone: body.phone || "(11) 99999-9999",
+        phone: phone || "",
         role: role as "CUSTOMER" | "ADMIN",
         authProvider: "EMAIL" as const,
         createdAt: new Date().toISOString(),
       };
       db.users.push(newUser);
       await insertUserToSupabase(newUser);
+
+      // Replica automaticamente os dados do titular no cadastro de Passageiros Frequentes
+      await upsertFrequentPassengerToSupabase({
+        id: `PAX-TITULAR-${newUser.id}`,
+        userEmail: normalizedEmail,
+        firstName,
+        lastName,
+        birthDate,
+        cpf,
+        email: normalizedEmail,
+        phone,
+        passport,
+        createdAt: newUser.createdAt,
+      });
+
       writeDb(db);
       return NextResponse.json({
         user: {
           id: newUser.id,
           name: newUser.name,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          birthDate: newUser.birthDate,
+          cpf: newUser.cpf,
+          passport: newUser.passport,
           email: newUser.email,
           phone: newUser.phone,
           role: newUser.role,
@@ -157,7 +229,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 3. Login / Cadastro Integrado com Google ou ID Apple
+    // 3. Login / Cadastro Integrado com Google ou ID Apple (com replicação para Passageiro Frequente se informado)
     if (body.action === "SOCIAL_AUTH") {
       const provider: "GOOGLE" | "APPLE" =
         body.provider === "APPLE" ? "APPLE" : "GOOGLE";
@@ -173,16 +245,42 @@ export async function POST(request: Request) {
         ? "ADMIN"
         : "CUSTOMER";
 
+      const fullParts = String(body.name || "")
+        .trim()
+        .split(/\s+/);
+      const firstName = String(
+        body.firstName || fullParts[0] || ""
+      ).trim();
+      const lastName = String(
+        body.lastName || fullParts.slice(1).join(" ") || ""
+      ).trim();
+      const birthDate = String(body.birthDate || "").trim();
+      const cpf = String(body.cpf || "").trim();
+      const phone = String(body.phone || "").trim();
+      const passport = String(body.passport || "")
+        .trim()
+        .toUpperCase();
+
       const existing = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+      const computedName =
+        firstName && lastName
+          ? `${firstName} ${lastName}`
+          : body.name ||
+            existing?.name ||
+            (isSuperAdminEmail(normalizedEmail)
+              ? "Donaldson Nunes"
+              : normalizedEmail.split("@")[0]);
+
       const userRecord = existing
         ? {
             ...existing,
-            name:
-              body.name ||
-              existing.name ||
-              (isSuperAdminEmail(normalizedEmail)
-                ? "Donaldson Nunes"
-                : normalizedEmail.split("@")[0]),
+            name: computedName,
+            firstName: firstName || existing.firstName || "",
+            lastName: lastName || existing.lastName || "",
+            birthDate: birthDate || existing.birthDate || "",
+            cpf: cpf || existing.cpf || "",
+            passport: passport || existing.passport || "",
+            phone: phone || existing.phone || "",
             role,
             authProvider: provider,
           }
@@ -190,14 +288,15 @@ export async function POST(request: Request) {
             id: isSuperAdminEmail(normalizedEmail)
               ? "usr-donaldson-admin"
               : `usr-${provider.toLowerCase()}-${Date.now()}`,
-            name:
-              body.name ||
-              (isSuperAdminEmail(normalizedEmail)
-                ? "Donaldson Nunes"
-                : normalizedEmail.split("@")[0]),
+            name: computedName,
+            firstName,
+            lastName,
+            birthDate,
+            cpf,
+            passport,
             email: normalizedEmail,
             passwordHash: "oauth_managed",
-            phone: body.phone || "(11) 99999-0000",
+            phone: phone || "(11) 99999-0000",
             role,
             authProvider: provider,
             createdAt: new Date().toISOString(),
@@ -207,12 +306,38 @@ export async function POST(request: Request) {
         db.users.push(userRecord);
       }
       await insertUserToSupabase(userRecord);
+
+      if (firstName && lastName && birthDate && cpf) {
+        const existingPaxList =
+          await fetchFrequentPassengersFromSupabase(normalizedEmail);
+        const matched = existingPaxList.find(
+          (ep) => ep.cpf.replace(/\D/g, "") === cpf.replace(/\D/g, "")
+        );
+        await upsertFrequentPassengerToSupabase({
+          id: matched?.id || `PAX-TITULAR-${userRecord.id}`,
+          userEmail: normalizedEmail,
+          firstName,
+          lastName,
+          birthDate,
+          cpf,
+          email: normalizedEmail,
+          phone,
+          passport,
+          createdAt: matched?.createdAt || new Date().toISOString(),
+        });
+      }
+
       writeDb(db);
 
       return NextResponse.json({
         user: {
           id: userRecord.id,
           name: userRecord.name,
+          firstName: userRecord.firstName,
+          lastName: userRecord.lastName,
+          birthDate: userRecord.birthDate,
+          cpf: userRecord.cpf,
+          passport: userRecord.passport,
           email: userRecord.email,
           phone: userRecord.phone,
           role: userRecord.role,

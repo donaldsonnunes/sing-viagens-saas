@@ -4,6 +4,13 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.9.1] — 2026-11-15
+### Adicionado (Replicação Automática dos Dados do Cadastro de Usuário para Passageiro Frequente)
+- **Formulário Unificado de Cadastro de Conta + Perfil de Passageiro (`src/app/conta/page.tsx`, `src/app/api/account/route.ts`, `src/lib/db.ts`, `supabase/migrations/20261115055800_add_passenger_fields_to_users_and_replicate.sql`)**:
+  - Ao cadastrar uma nova conta (tanto na aba **"Criar Conta + Passageiro"** quanto no modal **Google / ID Apple**), o sistema solicita os mesmos dados de passageiro aéreo (**Nome\***, **Sobrenome\***, **Data de Nascimento\***, **CPF\***, **E-mail\***, **Celular opcional** e **Passaporte opcional**) e replica automaticamente o titular em `public.frequent_passengers` para seleção imediata com 1 clique nas compras de passagens.
+
+---
+
 ## [2.9.0] — 2026-11-15
 ### Adicionado (Cadastro Ilimitado de Passageiros Frequentes na Conta e Seletor / Cadastro na Hora no Checkout)
 - **Tabela `public.frequent_passengers` no Supabase PostgreSQL (`supabase/migrations/20261115054600_add_frequent_passengers_table.sql`, `src/lib/db.ts`, `src/app/api/account/route.ts`)**:

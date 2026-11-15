@@ -70,7 +70,11 @@ export default function ContaPage() {
   const [authMode, setAuthMode] = useState<"LOGIN" | "REGISTER">("LOGIN");
   const [email, setEmail] = useState("donaldson.nunes@gmail.com");
   const [password, setPassword] = useState("sing2026");
-  const [name, setName] = useState("");
+  const [regFirstName, setRegFirstName] = useState("");
+  const [regLastName, setRegLastName] = useState("");
+  const [regBirthDate, setRegBirthDate] = useState("");
+  const [regCpf, setRegCpf] = useState("");
+  const [regPassport, setRegPassport] = useState("");
   const [phone, setPhone] = useState("");
   const [authError, setAuthError] = useState("");
   const [loadingAuth, setLoadingAuth] = useState(false);
@@ -80,7 +84,12 @@ export default function ContaPage() {
     "GOOGLE" | "APPLE" | null
   >(null);
   const [socialEmail, setSocialEmail] = useState("donaldson.nunes@gmail.com");
-  const [socialName, setSocialName] = useState("Donaldson Nunes");
+  const [socialFirstName, setSocialFirstName] = useState("Donaldson");
+  const [socialLastName, setSocialLastName] = useState("Nunes");
+  const [socialBirthDate, setSocialBirthDate] = useState("1985-04-12");
+  const [socialCpf, setSocialCpf] = useState("284.910.378-00");
+  const [socialPhone, setSocialPhone] = useState("(11) 99999-0000");
+  const [socialPassport, setSocialPassport] = useState("FP892341");
 
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -249,7 +258,12 @@ export default function ContaPage() {
           action: authMode,
           email,
           password,
-          name,
+          name: `${regFirstName} ${regLastName}`.trim(),
+          firstName: regFirstName,
+          lastName: regLastName,
+          birthDate: regBirthDate,
+          cpf: regCpf,
+          passport: regPassport,
           phone,
         }),
       });
@@ -267,7 +281,12 @@ export default function ContaPage() {
   const handleSocialLoginConfirm = async (
     provider: "GOOGLE" | "APPLE",
     targetEmail: string,
-    targetName: string
+    targetFirstName: string,
+    targetLastName: string,
+    targetBirthDate?: string,
+    targetCpf?: string,
+    targetPhone?: string,
+    targetPassport?: string
   ) => {
     setAuthError("");
     setLoadingAuth(true);
@@ -279,7 +298,13 @@ export default function ContaPage() {
           action: "SOCIAL_AUTH",
           provider,
           email: targetEmail,
-          name: targetName,
+          name: `${targetFirstName} ${targetLastName}`.trim(),
+          firstName: targetFirstName,
+          lastName: targetLastName,
+          birthDate: targetBirthDate || "",
+          cpf: targetCpf || "",
+          phone: targetPhone || "",
+          passport: targetPassport || "",
         }),
       });
       const data = await res.json();
@@ -456,7 +481,12 @@ export default function ContaPage() {
                   onClick={() => {
                     setSocialModalProvider("GOOGLE");
                     setSocialEmail("donaldson.nunes@gmail.com");
-                    setSocialName("Donaldson Nunes");
+                    setSocialFirstName("Donaldson");
+                    setSocialLastName("Nunes");
+                    setSocialBirthDate("1985-04-12");
+                    setSocialCpf("284.910.378-00");
+                    setSocialPhone("(11) 99999-0000");
+                    setSocialPassport("FP892341");
                   }}
                   className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white border border-gray-300 hover:border-[#172C3B] hover:bg-gray-50 text-[#09090B] font-bold text-xs sm:text-sm transition shadow-2xs"
                 >
@@ -469,7 +499,12 @@ export default function ContaPage() {
                   onClick={() => {
                     setSocialModalProvider("APPLE");
                     setSocialEmail("donaldson.nunes@gmail.com");
-                    setSocialName("Donaldson Nunes");
+                    setSocialFirstName("Donaldson");
+                    setSocialLastName("Nunes");
+                    setSocialBirthDate("1985-04-12");
+                    setSocialCpf("284.910.378-00");
+                    setSocialPhone("(11) 99999-0000");
+                    setSocialPassport("FP892341");
                   }}
                   className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-[#09090B] hover:bg-[#172C3B] text-white font-bold text-xs sm:text-sm transition shadow-2xs"
                 >
@@ -514,46 +549,109 @@ export default function ContaPage() {
                       : "text-gray-600"
                   }`}
                 >
-                  Criar Conta
+                  Criar Conta + Passageiro
                 </button>
               </div>
 
               <form onSubmit={handleAuthSubmit} className="space-y-3.5">
                 {authMode === "REGISTER" && (
-                  <>
-                    <div>
-                      <label className="block text-xs font-bold text-[#172C3B] mb-1">
-                        Seu Nome Completo
-                      </label>
-                      <div className="relative">
-                        <UserIcon className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                  <div className="space-y-3 p-3.5 rounded-xl bg-[#FAF8F5] border border-[#BD9472]/40">
+                    <div className="text-[11px] font-bold text-[#172C3B] leading-snug">
+                      Seus dados abaixo já serão replicados automaticamente para o seu cadastro de{" "}
+                      <span className="text-[#BD9472]">Passageiro Frequente</span>:
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                          Nome *
+                        </label>
                         <input
                           type="text"
                           required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Ex: Donaldson Nunes"
-                          className="w-full rounded-xl border border-gray-300 pl-9 pr-3 py-2 text-sm text-[#09090B]"
+                          value={regFirstName}
+                          onChange={(e) => setRegFirstName(e.target.value)}
+                          placeholder="Ex: Donaldson"
+                          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
                         />
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-[#172C3B] mb-1">
-                        WhatsApp
-                      </label>
-                      <div className="relative">
-                        <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                          Sobrenome *
+                        </label>
                         <input
                           type="text"
                           required
+                          value={regLastName}
+                          onChange={(e) => setRegLastName(e.target.value)}
+                          placeholder="Ex: Nunes"
+                          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                          Data de Nascimento *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={regBirthDate}
+                          onChange={(e) => setRegBirthDate(e.target.value)}
+                          className="w-full rounded-xl border border-gray-300 bg-white px-2.5 py-2 text-xs font-mono text-[#09090B]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                          CPF *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={regCpf}
+                          onChange={(e) => setRegCpf(e.target.value)}
+                          placeholder="000.000.000-00"
+                          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-[#09090B]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                          Celular{" "}
+                          <span className="font-normal text-gray-400">
+                            (opcional)
+                          </span>
+                        </label>
+                        <input
+                          type="text"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           placeholder="(11) 99999-9999"
-                          className="w-full rounded-xl border border-gray-300 pl-9 pr-3 py-2 text-sm text-[#09090B]"
+                          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                          Passaporte{" "}
+                          <span className="font-normal text-gray-400">
+                            (opcional)
+                          </span>
+                        </label>
+                        <input
+                          type="text"
+                          value={regPassport}
+                          onChange={(e) =>
+                            setRegPassport(e.target.value.toUpperCase())
+                          }
+                          placeholder="Ex: FP123456"
+                          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-[#09090B]"
                         />
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
 
                 <div>
@@ -1188,7 +1286,12 @@ export default function ContaPage() {
                   handleSocialLoginConfirm(
                     socialModalProvider,
                     "donaldson.nunes@gmail.com",
-                    "Donaldson Nunes"
+                    "Donaldson",
+                    "Nunes",
+                    "1985-04-12",
+                    "284.910.378-00",
+                    "(11) 99999-0000",
+                    "FP892341"
                   )
                 }
                 className="w-full p-3 rounded-xl border border-[#BD9472] bg-[#FAF8F5] hover:bg-[#E8E2D9]/50 transition flex items-center justify-between text-left"
@@ -1213,44 +1316,86 @@ export default function ContaPage() {
               </button>
             </div>
 
-            {/* Opção 2: Digitar outra conta Google ou Apple ID */}
+            {/* Opção 2: Digitar outra conta Google ou Apple ID já replicando dados de passageiro */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSocialLoginConfirm(
                   socialModalProvider,
                   socialEmail,
-                  socialName
+                  socialFirstName,
+                  socialLastName,
+                  socialBirthDate,
+                  socialCpf,
+                  socialPhone,
+                  socialPassport
                 );
               }}
-              className="space-y-3 pt-2 border-t border-gray-100"
+              className="space-y-2.5 pt-2 border-t border-gray-100"
             >
-              <div className="text-xs font-semibold text-gray-500">
-                Ou informe seu e-mail{" "}
-                {socialModalProvider === "GOOGLE" ? "Google" : "ID Apple"}:
+              <div className="text-xs font-semibold text-gray-600">
+                Ou cadastre/entre com sua conta{" "}
+                {socialModalProvider === "GOOGLE" ? "Google" : "ID Apple"} (replicando automaticamente no seu perfil de passageiro):
               </div>
-              <div>
+              <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
                   required
-                  value={socialName}
-                  onChange={(e) => setSocialName(e.target.value)}
-                  placeholder="Seu nome"
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B] mb-2"
-                />
-                <input
-                  type="email"
-                  required
-                  value={socialEmail}
-                  onChange={(e) => setSocialEmail(e.target.value)}
-                  placeholder={
-                    socialModalProvider === "GOOGLE"
-                      ? "seuemail@gmail.com"
-                      : "seuemail@icloud.com"
-                  }
+                  value={socialFirstName}
+                  onChange={(e) => setSocialFirstName(e.target.value)}
+                  placeholder="Nome *"
                   className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
                 />
+                <input
+                  type="text"
+                  required
+                  value={socialLastName}
+                  onChange={(e) => setSocialLastName(e.target.value)}
+                  placeholder="Sobrenome *"
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
+                />
+                <input
+                  type="date"
+                  required
+                  value={socialBirthDate}
+                  onChange={(e) => setSocialBirthDate(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-2.5 py-2 text-xs font-mono text-[#09090B]"
+                />
+                <input
+                  type="text"
+                  required
+                  value={socialCpf}
+                  onChange={(e) => setSocialCpf(e.target.value)}
+                  placeholder="CPF *"
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs font-mono text-[#09090B]"
+                />
+                <input
+                  type="text"
+                  value={socialPhone}
+                  onChange={(e) => setSocialPhone(e.target.value)}
+                  placeholder="Celular (opcional)"
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
+                />
+                <input
+                  type="text"
+                  value={socialPassport}
+                  onChange={(e) => setSocialPassport(e.target.value.toUpperCase())}
+                  placeholder="Passaporte (opcional)"
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs font-mono text-[#09090B]"
+                />
               </div>
+              <input
+                type="email"
+                required
+                value={socialEmail}
+                onChange={(e) => setSocialEmail(e.target.value)}
+                placeholder={
+                  socialModalProvider === "GOOGLE"
+                    ? "seuemail@gmail.com *"
+                    : "seuemail@icloud.com *"
+                }
+                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
+              />
 
               <div className="flex gap-2">
                 <button
