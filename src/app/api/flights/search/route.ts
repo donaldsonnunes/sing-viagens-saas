@@ -5,7 +5,12 @@ import {
   logExternalApiTestToSupabase,
   writeDb,
 } from "@/lib/db";
-import { searchAndCompareFlights, FlightSearchParams } from "@/lib/flightEngine";
+import { FlightSearchParams } from "@/lib/flightEngine";
+import {
+  searchFlightsWithApiViagensOptimization,
+  SearchOptimizationStrategy,
+  ApiViagensProvider,
+} from "@/lib/apiViagensService";
 
 export async function POST(request: Request) {
   const startMs = Date.now();
@@ -21,12 +26,35 @@ export async function POST(request: Request) {
       tripType: body.tripType === "ONE_WAY" ? "ONE_WAY" : "ROUND_TRIP",
       adults: Math.max(1, Number(body.adults) || 1),
       childrenAges: Array.isArray(body.childrenAges)
-        ? body.childrenAges.map((n: unknown) => Math.max(0, Math.min(17, Number(n) || 0)))
+        ? body.childrenAges.map((n: unknown) =>
+            Math.max(0, Math.min(17, Number(n) || 0))
+          )
         : [],
       cabinClass: body.cabinClass || "ECONOMY",
     };
 
-    const offers = searchAndCompareFlights(searchParams, db.pricingConfig);
+    const strategy: SearchOptimizationStrategy =
+      body.strategy === "CASH_FIRST" ||
+      body.strategy === "ALL_ELIGIBLE" ||
+      body.strategy === "CUSTOM"
+        ? body.strategy
+        : "SMART_ECONOMY";
+
+    const customProviders: ApiViagensProvider[] | undefined = Array.isArray(
+      body.customProviders
+    )
+      ? body.customProviders
+      : undefined;
+
+    const { offers, telemetry, preSearchCalendar } =
+      await searchFlightsWithApiViagensOptimization({
+        searchParams,
+        pricingConfig: db.pricingConfig,
+        strategy,
+        customProviders,
+        forceRefresh: Boolean(body.forceRefresh),
+        allowLiveCreditSpend: Boolean(body.allowLiveCreditSpend),
+      });
 
     if (offers.length > 0 && body.saveToHistory !== false) {
       const lowestSingPrice = Math.min(
@@ -36,7 +64,8 @@ export async function POST(request: Request) {
         ...offers.map(
           (o) =>
             o.airlineDirectComparison.find((c) => c.isSameOperatedFlight)
-              ?.directWebsitePriceTotal || o.pricingBreakdown.singFinalSalePriceTotal
+              ?.directWebsitePriceTotal ||
+            o.pricingBreakdown.singFinalSalePriceTotal
         )
       );
 
@@ -63,17 +92,30 @@ export async function POST(request: Request) {
       await Promise.all([
         insertSearchHistoryToSupabase(newHistoryItem),
         logExternalApiTestToSupabase({
-          providerName: "SING_MILES_PRICING_ENGINE",
+          providerName: telemetry.cacheHit
+            ? "APIVIAGENS_CACHE_HIT_0_CREDITS"
+            : "APIVIAGENS_SMART_ROUTER",
           endpoint: "/api/flights/search",
-          requestPayload: searchParams,
+          requestPayload: {
+            ...searchParams,
+            strategy: telemetry.strategyApplied,
+            queriedProviders: telemetry.queriedProviders,
+          },
           responsePayload: {
             offersCount: offers.length,
             lowestSingPrice,
             lowestAirlineDirectPrice,
+            cacheHit: telemetry.cacheHit,
+            creditsConsumed: telemetry.creditsConsumedThisCall,
+            creditsSaved: telemetry.creditsSavedThisCall,
           },
           httpStatus: 200,
           latencyMs: Date.now() - startMs,
-          notes: `Busca ${searchParams.origin} -> ${searchParams.destination} (${searchParams.adults} adt)`,
+          notes: `Busca ${searchParams.origin}->${searchParams.destination} | Cache:${
+            telemetry.cacheHit ? "HIT" : "MISS"
+          } | Créd. usados:${telemetry.creditsConsumedThisCall} / Poupados:${
+            telemetry.creditsSavedThisCall
+          }`,
         }),
       ]);
 
@@ -84,6 +126,8 @@ export async function POST(request: Request) {
       offers,
       pricingConfig: db.pricingConfig,
       searchParams,
+      telemetry,
+      preSearchCalendar,
     });
   } catch (err) {
     console.error("Error in /api/flights/search:", err);

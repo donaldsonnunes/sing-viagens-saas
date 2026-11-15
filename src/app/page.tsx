@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { FlightSearchExperience } from "@/components/FlightSearchExperience";
+import { PortalShowsAndAlertSection } from "@/components/PortalShowsAndAlertSection";
 import { FaqAccordion } from "@/components/FaqAccordion";
 import { SERVICES } from "@/data/siteContent";
 import {
@@ -176,6 +177,11 @@ export default function HomePage() {
           <FlightSearchExperience />
         </div>
       </section>
+
+      {/* 3.5. PRÓXIMOS SHOWS & FESTIVAIS EM DESTAQUE + ALERTA DE PREÇO */}
+      <div className="bg-white border-t border-zinc-200/80">
+        <PortalShowsAndAlertSection />
+      </div>
 
       {/* 4. COMO FUNCIONA E BENEFÍCIOS (BENTO GRID FOCADO EM PASSAGENS E SHOWS) */}
       <section id="beneficios" className="py-24 bg-white border-y border-zinc-200/80">

@@ -16,6 +16,10 @@ import {
   XCircle,
   ShoppingBag,
   Search,
+  Music,
+  BellRing,
+  MessageCircle,
+  Plus,
 } from "lucide-react";
 
 export default function AdminPricingPage() {
@@ -37,8 +41,20 @@ export default function AdminPricingPage() {
 
   const [allSearches, setAllSearches] = useState<any[]>([]);
   const [allOrders, setAllOrders] = useState<any[]>([]);
+  const [showsList, setShowsList] = useState<any[]>([]);
+  const [alertsList, setAlertsList] = useState<any[]>([]);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Novo Show no Admin
+  const [newShowTitle, setNewShowTitle] = useState("");
+  const [newShowArtist, setNewShowArtist] = useState("");
+  const [newShowVenue, setNewShowVenue] = useState("");
+  const [newShowCity, setNewShowCity] = useState("São Paulo");
+  const [newShowIata, setNewShowIata] = useState("GRU");
+  const [newShowDateLabel, setNewShowDateLabel] = useState("Outubro/2026");
+  const [newShowDepDate, setNewShowDepDate] = useState("2026-10-16");
+  const [newShowRetDate, setNewShowRetDate] = useState("2026-10-19");
 
   // Filtro de Período da Dashboard Admin (Padrão: últimos 30 dias até hoje)
   const [startDate, setStartDate] = useState("2026-10-15");
@@ -53,9 +69,11 @@ export default function AdminPricingPage() {
 
   const loadAdminData = () => {
     setLoading(true);
-    fetch("/api/admin/pricing")
-      .then((r) => r.json())
-      .then((data) => {
+    Promise.all([
+      fetch("/api/admin/pricing").then((r) => r.json()),
+      fetch("/api/portal").then((r) => r.json()),
+    ])
+      .then(([data, portalData]) => {
         if (data.pricingConfig) {
           setConfig(data.pricingConfig);
         }
@@ -65,8 +83,65 @@ export default function AdminPricingPage() {
         if (Array.isArray(data.orders)) {
           setAllOrders(data.orders);
         }
+        if (Array.isArray(portalData?.shows)) {
+          setShowsList(portalData.shows);
+        }
+        if (Array.isArray(portalData?.alerts)) {
+          setAlertsList(portalData.alerts);
+        }
       })
       .finally(() => setLoading(false));
+  };
+
+  const handleAddFeaturedShow = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newShowTitle) return;
+    await fetch("/api/portal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "CREATE_FEATURED_SHOW",
+        title: newShowTitle,
+        artistOrTour: newShowArtist || "Turnê Oficial",
+        venueName: newShowVenue || "Arena Principal",
+        city: newShowCity,
+        destinationIata: newShowIata,
+        eventDateLabel: newShowDateLabel,
+        suggestedDepartureDate: newShowDepDate,
+        suggestedReturnDate: newShowRetDate,
+        categoryBadge: "Show em Destaque",
+      }),
+    });
+    setNewShowTitle("");
+    setNewShowArtist("");
+    setNewShowVenue("");
+    loadAdminData();
+  };
+
+  const handleToggleShowActive = async (showId: string, active: boolean) => {
+    await fetch("/api/portal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "TOGGLE_SHOW_ACTIVE",
+        showId,
+        active,
+      }),
+    });
+    loadAdminData();
+  };
+
+  const handleUpdateAlertStatus = async (alertId: string, status: string) => {
+    await fetch("/api/portal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "UPDATE_ALERT_STATUS",
+        alertId,
+        status,
+      }),
+    });
+    loadAdminData();
   };
 
   useEffect(() => {
@@ -833,6 +908,207 @@ export default function AdminPricingPage() {
                   Cliente economiza {formatBRL(simCustomerSavings)} frente à Cia Aérea
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* =====================================================================
+            GESTÃO DE PRÓXIMOS SHOWS EM DESTAQUE & LEADS DE ALERTA DE PREÇO
+           ===================================================================== */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Coluna Esquerda (6 cols): Gestão de Shows & Festivais da Home */}
+          <div className="lg:col-span-6 rounded-2xl bg-white border border-zinc-200/80 p-7 shadow-sm space-y-5">
+            <div className="flex items-center gap-2 border-b border-zinc-100 pb-4">
+              <Music className="w-5 h-5 text-[#BD9472]" />
+              <div>
+                <h2 className="font-display text-lg font-extrabold text-[#09090B]">
+                  3. Gestão da Vitrine de Shows & Festivais (Home)
+                </h2>
+                <p className="text-xs text-zinc-500">
+                  Cadastre os grandes eventos do momento para conectar fãs direto à pesquisa de passagens.
+                </p>
+              </div>
+            </div>
+
+            <form
+              onSubmit={handleAddFeaturedShow}
+              className="p-4 rounded-2xl bg-[#FAFAFA] border border-zinc-200 space-y-3"
+            >
+              <div className="text-xs font-bold text-[#172C3B] flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5 text-[#BD9472]" />
+                <span>Adicionar Novo Show ou Festival à Vitrine</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <input
+                  type="text"
+                  required
+                  value={newShowTitle}
+                  onChange={(e) => setNewShowTitle(e.target.value)}
+                  placeholder="Nome do Show / Festival (Ex: Lollapalooza)"
+                  className="rounded-xl bg-white border border-zinc-300 px-3 py-2 text-xs"
+                />
+                <input
+                  type="text"
+                  value={newShowArtist}
+                  onChange={(e) => setNewShowArtist(e.target.value)}
+                  placeholder="Artista / Subtítulo"
+                  className="rounded-xl bg-white border border-zinc-300 px-3 py-2 text-xs"
+                />
+                <input
+                  type="text"
+                  value={newShowVenue}
+                  onChange={(e) => setNewShowVenue(e.target.value)}
+                  placeholder="Local / Arena (Ex: Autódromo Interlagos)"
+                  className="rounded-xl bg-white border border-zinc-300 px-3 py-2 text-xs"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={newShowCity}
+                    onChange={(e) => setNewShowCity(e.target.value)}
+                    placeholder="Cidade"
+                    className="rounded-xl bg-white border border-zinc-300 px-3 py-2 text-xs"
+                  />
+                  <input
+                    type="text"
+                    maxLength={3}
+                    value={newShowIata}
+                    onChange={(e) => setNewShowIata(e.target.value.toUpperCase())}
+                    placeholder="Sigla (GRU)"
+                    className="rounded-xl bg-white border border-zinc-300 px-3 py-2 font-mono text-xs uppercase"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={newShowDateLabel}
+                  onChange={(e) => setNewShowDateLabel(e.target.value)}
+                  placeholder="Rótulo Data (Ex: Março/2027)"
+                  className="rounded-xl bg-white border border-zinc-300 px-3 py-2 text-xs"
+                />
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#172C3B] text-[#E8E2D9] font-bold text-xs py-2 px-4 hover:bg-[#09090B] transition"
+                >
+                  Publicar Show na Vitrine
+                </button>
+              </div>
+            </form>
+
+            <div className="space-y-2.5 max-h-80 overflow-y-auto">
+              {showsList.map((sh) => (
+                <div
+                  key={sh.id}
+                  className="p-3.5 rounded-xl border border-zinc-200 flex items-center justify-between gap-3 text-xs"
+                >
+                  <div>
+                    <div className="font-bold text-[#09090B]">
+                      {sh.title}{" "}
+                      <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-zinc-100">
+                        {sh.destinationIata}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-zinc-500">
+                      {sh.venueName} ({sh.city}) • {sh.eventDateLabel}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleShowActive(sh.id, !sh.active)}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${
+                      sh.active
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-zinc-200 text-zinc-600"
+                    }`}
+                  >
+                    {sh.active ? "Ativo na Home" : "Oculto"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Coluna Direita (6 cols): Central de Leads / Alertas de Preço de Shows */}
+          <div className="lg:col-span-6 rounded-2xl bg-white border border-zinc-200/80 p-7 shadow-sm space-y-5">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
+              <div className="flex items-center gap-2">
+                <BellRing className="w-5 h-5 text-[#BD9472]" />
+                <div>
+                  <h2 className="font-display text-lg font-extrabold text-[#09090B]">
+                    4. Leads de Alertas de Passagem para Shows
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    Clientes que pediram monitoramento de voo para seus shows e eventos.
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-[#172C3B] text-[#BD9472] font-mono text-xs font-bold">
+                {alertsList.length} leads
+              </span>
+            </div>
+
+            <div className="space-y-3 max-h-[420px] overflow-y-auto">
+              {alertsList.map((al) => {
+                const cleanPhone = (al.customerWhatsapp || "").replace(/\D/g, "");
+                const waText = encodeURIComponent(
+                  `Olá ${al.customerName}! Aqui é da Sing Viagens. Identificamos uma excelente oportunidade de passagem aérea (${al.originIata} -> ${al.destinationIata}) para o seu evento "${al.showOrEventName}" em ${al.targetMonthOrDate}!`
+                );
+
+                return (
+                  <div
+                    key={al.id}
+                    className="p-4 rounded-2xl bg-[#FAFAFA] border border-zinc-200 space-y-2.5 text-xs"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-bold text-[#09090B] text-sm">
+                        {al.customerName}{" "}
+                        <span className="font-mono text-xs text-[#172C3B] font-semibold">
+                          ({al.originIata} → {al.destinationIata})
+                        </span>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          al.status === "ATENDIDO"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-900"
+                        }`}
+                      >
+                        {al.status}
+                      </span>
+                    </div>
+
+                    <div className="text-zinc-600">
+                      Evento: <strong className="text-[#172C3B]">{al.showOrEventName}</strong> • Data:{" "}
+                      <strong>{al.targetMonthOrDate}</strong>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-200/70">
+                      <span className="font-mono text-[11px] text-zinc-500">
+                        WhatsApp: {al.customerWhatsapp}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`https://wa.me/55${cleanPhone}?text=${waText}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-[11px] hover:bg-emerald-700 transition"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Chamar no WhatsApp</span>
+                        </a>
+                        {al.status !== "ATENDIDO" && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateAlertStatus(al.id, "ATENDIDO")}
+                            className="px-2.5 py-1.5 rounded-xl bg-zinc-200 text-zinc-800 font-semibold text-[11px] hover:bg-zinc-300"
+                          >
+                            Marcar Atendido
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

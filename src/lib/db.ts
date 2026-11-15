@@ -36,6 +36,13 @@ export interface SearchHistoryItem {
   createdAt: string;
 }
 
+export interface PassengerDetailItem {
+  typeLabel: string; // Ex: "Adulto 1", "Criança 1 (8 anos)"
+  fullName: string;
+  documentCpfOrPassport: string;
+  birthDate: string;
+}
+
 export interface PurchaseOrderItem {
   id: string;
   pnr: string;
@@ -43,6 +50,7 @@ export interface PurchaseOrderItem {
   userEmail: string;
   customerName: string;
   customerPhone: string;
+  payerCpf?: string;
   flightCode: string;
   airline: string;
   origin: string;
@@ -50,6 +58,7 @@ export interface PurchaseOrderItem {
   departureDate: string;
   returnDate?: string;
   passengersSummary: string;
+  passengersDetails?: PassengerDetailItem[];
   singTotalPrice: number;
   airlineDirectReferencePrice: number;
   savingsAmount: number;
@@ -57,6 +66,34 @@ export interface PurchaseOrderItem {
   singProfitAmount?: number;
   paymentMethod: "PIX" | "CREDIT_CARD" | "CORPORATE_INVOICE";
   status: "CONFIRMADO" | "EM_EMISSAO" | "CANCELADO";
+  createdAt: string;
+}
+
+export interface FeaturedShowItem {
+  id: string;
+  title: string;
+  artistOrTour: string;
+  venueName: string;
+  city: string;
+  destinationIata: string;
+  eventDateLabel: string;
+  suggestedDepartureDate: string;
+  suggestedReturnDate: string;
+  categoryBadge: string;
+  active: boolean;
+  createdAt?: string;
+}
+
+export interface PriceAlertLeadItem {
+  id: string;
+  customerName: string;
+  customerWhatsapp: string;
+  customerEmail: string;
+  showOrEventName: string;
+  originIata: string;
+  destinationIata: string;
+  targetMonthOrDate: string;
+  status: "NOVO" | "ATENDIDO" | "CONVERTIDO";
   createdAt: string;
 }
 
@@ -352,6 +389,7 @@ export async function fetchDatabaseFromSupabase(): Promise<DatabaseSchema> {
               userEmail: o.user_email,
               customerName: o.customer_name,
               customerPhone: o.customer_phone,
+              payerCpf: o.payer_cpf || "",
               flightCode: o.flight_code,
               airline: o.airline,
               origin: o.origin,
@@ -359,6 +397,9 @@ export async function fetchDatabaseFromSupabase(): Promise<DatabaseSchema> {
               departureDate: o.departure_date,
               returnDate: o.return_date || undefined,
               passengersSummary: o.passengers_summary,
+              passengersDetails: Array.isArray(o.passengers_details)
+                ? o.passengers_details
+                : [],
               singTotalPrice: singTotal,
               airlineDirectReferencePrice: Number(
                 o.airline_direct_reference_price || 0
@@ -468,6 +509,7 @@ export async function insertOrderToSupabase(order: PurchaseOrderItem): Promise<v
         user_email: order.userEmail,
         customer_name: order.customerName,
         customer_phone: order.customerPhone,
+        payer_cpf: order.payerCpf || "",
         flight_code: order.flightCode,
         airline: order.airline,
         origin: order.origin,
@@ -475,6 +517,7 @@ export async function insertOrderToSupabase(order: PurchaseOrderItem): Promise<v
         departure_date: order.departureDate,
         return_date: order.returnDate || null,
         passengers_summary: order.passengersSummary,
+        passengers_details: order.passengersDetails || [],
         sing_total_price: order.singTotalPrice,
         airline_direct_reference_price: order.airlineDirectReferencePrice,
         savings_amount: order.savingsAmount,

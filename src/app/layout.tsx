@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { WhatsAppFloatingButton } from "@/components/WhatsAppFloatingButton";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -54,6 +55,7 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
+        <WhatsAppFloatingButton />
       </body>
     </html>
   );

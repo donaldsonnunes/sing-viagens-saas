@@ -54,6 +54,11 @@ export function FlightSearchExperience({
   const [loading, setLoading] = useState(false);
   const [offers, setOffers] = useState<FlightOfferResult[]>([]);
   const [expandedOfferId, setExpandedOfferId] = useState<string | null>(null);
+  const [searchStrategy, setSearchStrategy] = useState<
+    "SMART_ECONOMY" | "CASH_FIRST" | "ALL_ELIGIBLE"
+  >("SMART_ECONOMY");
+  const [telemetry, setTelemetry] = useState<any>(null);
+  const [preSearchCalendar, setPreSearchCalendar] = useState<any[]>([]);
 
   const selectedOriginAirport = useMemo(
     () => AIRPORTS.find((a) => a.iata === originIata) || AIRPORTS[0],
@@ -88,7 +93,11 @@ export function FlightSearchExperience({
     );
   }, [destinationQuery]);
 
-  const executeFlightSearch = async (saveHistory = true) => {
+  const executeFlightSearch = async (
+    saveHistory = true,
+    overrideDepartureDate?: string,
+    overrideStrategy?: "SMART_ECONOMY" | "CASH_FIRST" | "ALL_ELIGIBLE"
+  ) => {
     setLoading(true);
     try {
       const savedUser =
@@ -101,12 +110,13 @@ export function FlightSearchExperience({
         body: JSON.stringify({
           origin: originIata,
           destination: destinationIata,
-          departureDate,
+          departureDate: overrideDepartureDate || departureDate,
           returnDate: tripType === "ROUND_TRIP" ? returnDate : undefined,
           tripType,
           adults,
           childrenAges,
           cabinClass,
+          strategy: overrideStrategy || searchStrategy,
           saveToHistory: saveHistory,
           userId: parsedUser?.id,
           userEmail: parsedUser?.email,
@@ -115,6 +125,12 @@ export function FlightSearchExperience({
       const data = await res.json();
       if (data.offers) {
         setOffers(data.offers);
+      }
+      if (data.telemetry) {
+        setTelemetry(data.telemetry);
+      }
+      if (Array.isArray(data.preSearchCalendar)) {
+        setPreSearchCalendar(data.preSearchCalendar);
       }
     } catch (e) {
       console.error("Failed flight search:", e);
@@ -565,6 +581,124 @@ export function FlightSearchExperience({
           </div>
         </div>
       </div>
+
+      {/* PAINEL DE OTIMIZAÇÃO DE CRÉDITOS APIVIAGENS & MATRIZ PRÉ-BUSCA (CUSTO ZERO) */}
+      {telemetry && (
+        <div className="rounded-2xl bg-white border border-zinc-200/90 shadow-sm p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`font-mono text-[11px] font-bold px-2.5 py-1 rounded-lg ${
+                  telemetry.cacheHit
+                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                    : "bg-[#172C3B] text-[#E8E2D9]"
+                }`}
+              >
+                {telemetry.cacheHit
+                  ? `CACHE ATIVO 50m (0 CRÉDITOS GASTOS • VÁLIDO P/ RESERVA)`
+                  : `GATEWAY APIVIAGENS (${telemetry.creditsConsumedThisCall} CRÉD. USADOS / ${telemetry.creditsSavedThisCall} POUPADOS)`}
+              </span>
+              <span className="text-xs text-zinc-600">
+                Consultados:{" "}
+                <strong className="text-[#09090B] uppercase font-mono">
+                  {telemetry.queriedProviders?.join(", ")}
+                </strong>
+              </span>
+              {telemetry.skippedProviders?.length > 0 && (
+                <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-medium">
+                  Poupados no filtro:{" "}
+                  {telemetry.skippedProviders
+                    .map((s: any) => s.provider)
+                    .join(", ")}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-zinc-500 uppercase mr-1">
+                Modo de Consumo:
+              </span>
+              {(
+                [
+                  { id: "CASH_FIRST", label: "1 Créd. (Só Tarifado)" },
+                  { id: "SMART_ECONOMY", label: "Smart (Top 3 Rota)" },
+                  { id: "ALL_ELIGIBLE", label: "Completo (Elegíveis)" },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    setSearchStrategy(m.id);
+                    executeFlightSearch(false, undefined, m.id);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${
+                    searchStrategy === m.id
+                      ? "bg-[#09090B] text-[#BD9472]"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Faixa de 7 Dias de Pré-Busca (Zero Consumo de Créditos na API) */}
+          {preSearchCalendar.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                <span className="font-semibold text-[#172C3B]">
+                  Calendário Pré-Filtro de Custo Fixo (Escolha a melhor data antes de gastar créditos na API):
+                </span>
+                <span className="font-mono text-emerald-700 font-bold">
+                  Economia Acumulada na Sessão: {telemetry.totalSessionCreditsSaved} créditos
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
+                {preSearchCalendar.map((day: any) => (
+                  <button
+                    key={day.date}
+                    type="button"
+                    onClick={() => {
+                      setDepartureDate(day.date);
+                      executeFlightSearch(true, day.date);
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      day.isSelectedDate
+                        ? "bg-[#09090B] text-white border-[#09090B] shadow-sm"
+                        : day.isCheapestInWindow
+                        ? "bg-emerald-50/70 border-emerald-300 hover:bg-emerald-100/70 text-[#09090B]"
+                        : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-[#09090B]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-[10px] opacity-80 font-mono">
+                      <span>{day.dayOfWeekLabel}</span>
+                      <span>{day.date.slice(5)}</span>
+                    </div>
+                    <div className="font-mono text-xs sm:text-sm font-bold mt-1">
+                      {formatBRL(day.estimatedLowestSingBRL)}
+                    </div>
+                    <div
+                      className={`text-[10px] font-medium truncate ${
+                        day.isSelectedDate
+                          ? "text-[#BD9472]"
+                          : day.isCheapestInWindow
+                          ? "text-emerald-700 font-bold"
+                          : "text-zinc-500"
+                      }`}
+                    >
+                      {day.isCheapestInWindow
+                        ? "★ Menor Tarifa"
+                        : `~${(day.estimatedLowestMiles / 1000).toFixed(1)}k mi`}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* LISTA DE VOOS & COMPARATIVO LADO A LADO */}
       {offers.length > 0 && (

@@ -4,6 +4,19 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.7.0] — 2026-11-15
+### Adicionado (4 Módulos Operacionais do Portal Geral: Passageiros ANAC no Checkout, Voucher PDF, Vitrine de Shows no Admin e Central de Alertas/Leads)
+- **1. Checkout Completo com Dados Individuais de Passageiros (`src/app/checkout/page.tsx`, `src/app/api/account/route.ts`)**:
+  - Geração dinâmica de campos para cada passageiro da busca (Adultos, Crianças e Bebês) coletando **Nome Completo conforme documento**, **CPF/Passaporte** e **Data de Nascimento**, além do **CPF do Pagador**, salvando tudo em `public.orders.passengers_details` no Supabase.
+- **2. Voucher / E-Ticket Oficial para Impressão e PDF (`src/components/TicketVoucherModal.tsx`, `src/app/conta/page.tsx`, `src/app/checkout/page.tsx`)**:
+  - Modal de **Bilhete Eletrônico Oficial Sing Viagens** com emblema da marca, Código Localizador (`PNR`), resumo do voo, tabela nominal de passageiros com documento, recibo financeiro com economia gerada e botão **"Imprimir / Salvar Voucher em PDF"** (`window.print()`).
+- **3. Vitrine Dinâmica de "Próximos Shows & Festivais" Gerenciada pelo Admin (`src/components/PortalShowsAndAlertSection.tsx`, `src/app/api/portal/route.ts`, `src/app/admin/page.tsx`)**:
+  - Nova tabela `public.featured_shows` no Supabase exibindo na Home os grandes shows/festivais do momento com botão direto **"Buscar Voo para este Show"**, e painel no `/admin` para cadastrar novos shows ou ocultar/ativar eventos na vitrine.
+- **4. Captação de Leads / "Alerta de Passagem para o Meu Show" + Botão WhatsApp Flutuante (`src/components/WhatsAppFloatingButton.tsx`, `src/app/admin/page.tsx`)**:
+  - Nova tabela `public.price_alerts` no Supabase onde fãs cadastram alertas de queda de preço para seus shows e a equipe Sing visualiza no `/admin` com botão de 1 clique **"Chamar no WhatsApp"** já com a mensagem personalizada preenchida.
+
+---
+
 ## [2.6.0] — 2026-11-15
 ### Adicionado (Dashboard do Usuário e Dashboard Gerencial do Admin por Período)
 - **Dashboard do Usuário (`src/app/conta/page.tsx`)**:

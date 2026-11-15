@@ -9,6 +9,7 @@ import {
   updateOrderStatusInSupabase,
   writeDb,
 } from "@/lib/db";
+import { bookAirfareOnApiViagens } from "@/lib/apiViagensService";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -269,9 +270,56 @@ export async function POST(request: Request) {
       });
     }
 
-    // 5. Criação de Pedido no Checkout
+    // 5. Criação de Pedido no Checkout (com reserva PNR gratuita em POST /v1/airfares/book)
     if (body.action === "CREATE_ORDER") {
-      const pnr = `SNG${Math.floor(100 + Math.random() * 900)}`;
+      let pnr = `SNG${Math.floor(100 + Math.random() * 900)}`;
+
+      if (body.offerId) {
+        try {
+          const nameParts = String(body.customerName || "CLIENTE SING")
+            .trim()
+            .toUpperCase()
+            .split(/\s+/);
+          const firstName = nameParts[0] || "CLIENTE";
+          const lastName = nameParts.slice(1).join(" ") || "SING";
+          const cleanDigits = String(body.customerPhone || "11999998888").replace(
+            /\D/g,
+            ""
+          );
+          const areaCode = cleanDigits.slice(0, 2) || "11";
+          const phoneNum = cleanDigits.slice(2) || "999998888";
+
+          const bookingRes = await bookAirfareOnApiViagens({
+            offer_id: String(body.offerId),
+            passengers: [
+              {
+                first_name: firstName,
+                last_name: lastName,
+                age_group: "ADT",
+                birth_date: body.birthDate || "1990-05-20",
+                gender: body.gender === "F" ? "F" : "M",
+                cpf: String(body.cpf || "39053344705").replace(/\D/g, ""),
+              },
+            ],
+            contacts: [
+              {
+                name: `${firstName} ${lastName}`,
+                email: body.userEmail || "cliente@singviagens.com.br",
+                country_code: "55",
+                area_code: areaCode,
+                number: phoneNum,
+              },
+            ],
+          });
+
+          if (bookingRes?.locator) {
+            pnr = bookingRes.locator;
+          }
+        } catch (bookErr) {
+          console.warn("Fallback local PNR no checkout:", bookErr);
+        }
+      }
+
       const singTotalPrice = Number(body.singTotalPrice) || 1290;
       const savingsAmount = Number(body.savingsAmount) || 300;
       const singProfitAmount = Number(body.singProfitAmount ?? savingsAmount);
@@ -286,6 +334,7 @@ export async function POST(request: Request) {
         userEmail: body.userEmail || "cliente@singviagens.com.br",
         customerName: body.customerName || "Cliente VIP Sing",
         customerPhone: body.customerPhone || "(11) 98888-7777",
+        payerCpf: body.payerCpf || "",
         flightCode: body.flightCode || "LA3418",
         airline: body.airline || "LATAM Airlines",
         origin: body.origin || "GRU",
@@ -293,6 +342,9 @@ export async function POST(request: Request) {
         departureDate: body.departureDate || "2026-12-10",
         returnDate: body.returnDate,
         passengersSummary: body.passengersSummary || "1 Adulto",
+        passengersDetails: Array.isArray(body.passengersDetails)
+          ? body.passengersDetails
+          : [],
         singTotalPrice,
         airlineDirectReferencePrice: Number(body.airlineDirectReferencePrice) || 1590,
         savingsAmount,

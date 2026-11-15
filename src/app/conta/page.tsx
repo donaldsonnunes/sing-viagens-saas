@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { TicketVoucherModal } from "@/components/TicketVoucherModal";
 import {
   History,
   ShoppingBag,
@@ -18,6 +19,7 @@ import {
   Phone,
   ArrowRight,
   X,
+  FileText,
 } from "lucide-react";
 
 const SUPABASE_PROJECT_URL =
@@ -78,6 +80,7 @@ export default function ContaPage() {
 
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [selectedVoucherOrder, setSelectedVoucherOrder] = useState<any>(null);
 
   const saveSessionAndNotify = (loggedUser: any) => {
     localStorage.setItem("sing_user", JSON.stringify(loggedUser));
@@ -795,23 +798,33 @@ export default function ContaPage() {
                         </div>
                       </div>
 
-                      {!isCancelled ? (
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleToggleOrderStatus(ord.id, "CANCELADO")}
-                          className="text-[11px] px-2.5 py-1 rounded-lg bg-red-500/20 text-red-200 hover:bg-red-500/30 font-semibold transition"
+                          onClick={() => setSelectedVoucherOrder(ord)}
+                          className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-[#BD9472] text-[#0E1B24] hover:bg-[#D4AF8E] font-extrabold transition"
                         >
-                          Cancelar Passagem
+                          <FileText className="w-3 h-3" />
+                          <span>Voucher / PDF</span>
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleToggleOrderStatus(ord.id, "CONFIRMADO")}
-                          className="text-[11px] px-2.5 py-1 rounded-lg bg-[#172C3B] text-white hover:opacity-90 font-semibold transition"
-                        >
-                          Reativar Reserva
-                        </button>
-                      )}
+                        {!isCancelled ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleOrderStatus(ord.id, "CANCELADO")}
+                            className="text-[11px] px-2.5 py-1 rounded-lg bg-red-500/20 text-red-200 hover:bg-red-500/30 font-semibold transition"
+                          >
+                            Cancelar Passagem
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleOrderStatus(ord.id, "CONFIRMADO")}
+                            className="text-[11px] px-2.5 py-1 rounded-lg bg-[#172C3B] text-white hover:opacity-90 font-semibold transition"
+                          >
+                            Reativar Reserva
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -950,6 +963,12 @@ export default function ContaPage() {
             </form>
           </div>
         </div>
+      )}
+      {selectedVoucherOrder && (
+        <TicketVoucherModal
+          order={selectedVoucherOrder}
+          onClose={() => setSelectedVoucherOrder(null)}
+        />
       )}
     </div>
   );
