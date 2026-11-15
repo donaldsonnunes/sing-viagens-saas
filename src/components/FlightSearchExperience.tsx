@@ -1213,21 +1213,21 @@ export function FlightSearchExperience({
                 baseTotal + extraCheckedTotal + specialBagTotal;
 
               return (
-                <aside className="lg:col-span-4 lg:sticky lg:top-24 rounded-2xl bg-[#172C3B] text-[#E8E2D9] p-6 border-2 border-[#BD9472]/60 shadow-2xl space-y-5 animate-fade-up">
-                  <div className="flex items-center justify-between border-b border-white/15 pb-3">
+                <aside className="lg:col-span-4 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto rounded-2xl bg-[#172C3B] text-[#E8E2D9] p-4 sm:p-5 border-2 border-[#BD9472]/60 shadow-2xl space-y-3.5 animate-fade-up">
+                  <div className="flex items-center justify-between border-b border-white/15 pb-2.5">
                     <div>
                       <span className="text-[10px] font-mono uppercase tracking-widest text-[#BD9472] font-bold">
                         Resumo dos Trechos Selecionados
                       </span>
-                      <h4 className="text-base font-extrabold text-white">
+                      <h4 className="text-sm font-extrabold text-white">
                         Sua Viagem Sing
                       </h4>
                     </div>
-                    <Plane className="w-5 h-5 text-[#BD9472]" />
+                    <Plane className="w-4 h-4 text-[#BD9472]" />
                   </div>
 
                   {/* Trecho 1: Ida */}
-                  <div className="p-3.5 rounded-xl bg-white/10 border border-white/15 space-y-1.5">
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/15 space-y-1">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="font-mono font-bold text-[#BD9472] uppercase">
                         1. Voo de Ida • {departureDate}
@@ -1236,19 +1236,19 @@ export function FlightSearchExperience({
                         Selecionado ✓
                       </span>
                     </div>
-                    <div className="text-sm font-extrabold text-white">
+                    <div className="text-xs sm:text-sm font-extrabold text-white">
                       {selectedOutboundOffer.originAirport.city} (
                       {selectedOutboundOffer.originAirport.iata}) →{" "}
                       {selectedOutboundOffer.destinationAirport.city} (
                       {selectedOutboundOffer.destinationAirport.iata})
                     </div>
-                    <div className="text-xs text-[#E8E2D9]/80">
+                    <div className="text-[11px] text-[#E8E2D9]/80">
                       {selectedOutboundOffer.operatingAirlineName} • Voo{" "}
                       {selectedOutboundOffer.flightNumber} •{" "}
                       {selectedOutboundOffer.departureTime} -{" "}
                       {selectedOutboundOffer.arrivalTime}
                     </div>
-                    <div className="text-[11px] text-[#E8E2D9]/70">
+                    <div className="text-[10px] text-[#E8E2D9]/70">
                       {selectedOutboundOffer.stops === 0
                         ? "Voo Direto"
                         : `${selectedOutboundOffer.stops} conexão(ões)`}{" "}
@@ -1262,7 +1262,7 @@ export function FlightSearchExperience({
                   {/* Trecho 2: Volta (se Ida e Volta) */}
                   {tripType === "ROUND_TRIP" && (
                     <div
-                      className={`p-3.5 rounded-xl border space-y-1.5 ${
+                      className={`p-3 rounded-xl border space-y-1 ${
                         selectedReturnOffer
                           ? "bg-white/10 border-white/15"
                           : "bg-[#BD9472]/15 border-dashed border-[#BD9472]"
@@ -1282,13 +1282,13 @@ export function FlightSearchExperience({
                               Trocar Volta
                             </button>
                           </div>
-                          <div className="text-sm font-extrabold text-white">
+                          <div className="text-xs sm:text-sm font-extrabold text-white">
                             {selectedReturnOffer.destinationAirport.city} (
                             {selectedReturnOffer.destinationAirport.iata}) →{" "}
                             {selectedReturnOffer.originAirport.city} (
                             {selectedReturnOffer.originAirport.iata})
                           </div>
-                          <div className="text-xs text-[#E8E2D9]/80">
+                          <div className="text-[11px] text-[#E8E2D9]/80">
                             {selectedReturnOffer.operatingAirlineName} • Voo{" "}
                             {selectedReturnOffer.returnFlightNumber ||
                               selectedReturnOffer.flightNumber}{" "}
@@ -1311,8 +1311,8 @@ export function FlightSearchExperience({
 
                   {/* Inclusão de Bagagens Despachadas e Especiais após fechar todos os trechos */}
                   {isAllLegsClosed && (
-                    <div className="p-3.5 rounded-xl bg-[#0E1B24]/70 border border-[#BD9472]/40 space-y-3">
-                      <div className="text-xs font-extrabold text-[#BD9472] uppercase tracking-wider">
+                    <div className="p-3 rounded-xl bg-[#0E1B24]/70 border border-[#BD9472]/40 space-y-2.5">
+                      <div className="text-[11px] font-extrabold text-[#BD9472] uppercase tracking-wider">
                         Adicionar Bagagens (Opcional)
                       </div>
 
