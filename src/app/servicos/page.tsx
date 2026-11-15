@@ -11,13 +11,13 @@ export default function ServicosOverviewPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#BD9472]">
             <Sparkles className="w-4 h-4" />
-            <span>Portfólio Completo de Soluções</span>
+            <span>O Elo entre Você e o Seu Show</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-extrabold text-white">
-            Nossos Serviços e Modalidades de Viagem
+            Emissão de Passagens Aéreas para Shows e Destinos
           </h1>
           <p className="text-base sm:text-lg text-[#E8E2D9]/85 max-w-3xl">
-            Identifique rapidamente qual pacote ou assessoria resolve a sua necessidade — seja para assistir a um show internacional, emitir passagens com economia comparada ou organizar as viagens da sua empresa.
+            Escolha a modalidade de emissão ideal para a sua viagem — seja para garantir o voo perfeito para o seu festival favorito, emitir passagens nacionais e internacionais com economia comparada ou organizar o embarque do seu grupo.
           </p>
         </div>
       </section>

@@ -89,7 +89,7 @@ export default function CheckoutPage() {
                   : "bg-white/10 text-white"
               }`}
             >
-              1. Checkout Direto de Passagem / Pacote
+              1. Emitir Passagem Aérea Online
             </button>
             <button
               type="button"

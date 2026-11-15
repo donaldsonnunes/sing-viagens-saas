@@ -4,6 +4,18 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.3.0] — 2026-11-14
+### Alterado (Foco Comercial 100% em Passagens Aéreas para Shows & Limpeza de Jargões Técnicos)
+- **Foco Exclusivo em Passagens Aéreas na Fase 1 (`src/data/siteContent.ts`, `src/components/FlightSearchExperience.tsx`, `src/app/page.tsx`, `src/app/servicos/*`)**:
+  - Todas as páginas e Landing Pages de serviços (`/servicos` e `/servicos/[slug]`) foram revisadas para focar exclusivamente na conexão entre o cliente e seu show/evento/destino por meio de **passagens aéreas** (Shows e Festivais, Emissão Nacional e Internacional Comparada, Executiva & Cabines Premium, e Grupos/Equipes de Eventos).
+  - Módulos de Hospedagens, Pacotes, Portfólio/Cases e Depoimentos/Reviews foram removidos da navegação e da vitrine ativa, ficando planejados para um segundo momento (Fase 2).
+- **Remoção de Informações Técnicas e Jargões Internos (`Navbar.tsx`, `Footer.tsx`, `sobre/page.tsx`, `FlightSearchExperience.tsx`, `page.tsx`)**:
+  - Removidos blocos técnicos de exibição de *Design Tokens / Paleta de Cores Hex* do rodapé e da página Sobre.
+  - Removido o badge técnico `v2.0` ao lado da logomarca na barra de navegação e janelas de código/URL técnica na Home.
+  - Removido o termo técnico `IATA` dos rótulos visíveis ao usuário no buscador e nos cards (substituído por *"De onde você vai sair?"* e *"Para onde você vai?"*, mantendo a busca inteligente por cidade ou código de 3 letras do aeroporto).
+
+---
+
 ## [2.2.0] — 2026-11-14
 ### Adicionado
 - **Preparação para Deploy em Produção & Documentação (`docs/05-GUIA-DE-DEPLOY-PRODUCAO.md` e `.gitignore`)**:

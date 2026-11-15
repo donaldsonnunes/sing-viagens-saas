@@ -42,7 +42,7 @@ export default async function ServiceLandingPage({
 
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#BD9472]/20 border border-[#BD9472]/40 text-[#BD9472] text-xs font-bold ml-3">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Landing Page Oficial • {service.badge}</span>
+            <span>{service.badge}</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-tight">

@@ -1,37 +1,28 @@
 import React from "react";
 import Link from "next/link";
-import { SingCompactSymbol } from "@/components/Navbar";
-import {
-  ShieldCheck,
-  Award,
-  Users,
-  Sparkles,
-  CheckCircle2,
-  Globe,
-  Music,
-} from "lucide-react";
+import { ShieldCheck, Sparkles, Music, Plane, ArrowRight } from "lucide-react";
 
 export default function SobrePage() {
   return (
-    <div className="bg-[#FAF8F5] min-h-screen pb-20">
-      {/* Hero */}
-      <section className="bg-[#172C3B] text-[#E8E2D9] py-16 border-b border-[#BD9472]/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+    <div className="bg-[#FAFAFA] min-h-screen pb-20 text-[#09090B]">
+      {/* Hero Institucional */}
+      <section className="bg-[#09090B] text-white pt-24 pb-16 -mt-20 border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-7 space-y-4">
             <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#BD9472]">
               <Sparkles className="w-4 h-4" />
-              <span>Quem Somos • Nossa História e Identidade</span>
+              <span>Quem Somos • Sing Viagens e Turismo</span>
             </div>
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-tight">
-              A marca confiável para viajar, apaixonada por experiências, shows e eventos.
+            <h1 className="font-display text-3xl sm:text-5xl font-extrabold text-white leading-tight">
+              O elo entre você e os momentos que ficam para sempre na memória.
             </h1>
-            <p className="text-base text-[#E8E2D9]/85 leading-relaxed">
-              A <strong>Sing Viagens e Turismo</strong> nasceu da união entre especialistas em engenharia tarifária da aviação comercial e apaixonados pela indústria de grandes espetáculos e eventos ao redor do mundo.
+            <p className="text-base text-zinc-400 leading-relaxed">
+              A <strong>Sing Viagens e Turismo</strong> nasceu para conectar pessoas aos seus grandes shows, festivais e destinos dos sonhos através de uma emissão de passagens aéreas mais justa, inteligente e transparente.
             </p>
           </div>
 
           <div className="lg:col-span-5">
-            <div className="rounded-2xl bg-[#0B141C] border border-[#BD9472]/40 p-5 shadow-xl text-center space-y-3">
+            <div className="rounded-2xl bg-[#0E1318] border border-white/10 p-6 shadow-xl text-center space-y-3">
               <img
                 src="/logo.png"
                 alt="Logotipo Sing Viagens e Turismo"
@@ -45,100 +36,56 @@ export default function SobrePage() {
         </div>
       </section>
 
-      {/* Missão, Certificações e Equipe */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-14">
+      {/* Pilares da Sing */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="rounded-2xl bg-white border border-gray-200 p-6 space-y-3">
-            <ShieldCheck className="w-8 h-8 text-[#BD9472]" />
-            <h3 className="text-lg font-bold text-[#172C3B]">
-              Segurança & Credenciamento Oficial
+          <div className="rounded-2xl bg-white border border-zinc-200 p-7 space-y-3">
+            <Plane className="w-8 h-8 text-[#BD9472]" />
+            <h3 className="font-display text-lg font-bold text-[#09090B]">
+              Economia Transparente em Passagens
             </h3>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              Operação 100% regularizada junto ao Ministério do Turismo (Cadastur), acordos com as maiores consolidadoras IATA e conformidade rigorosa com a Resolução 400 da ANAC.
+            <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed">
+              Em todas as buscas, mostramos o nosso valor final ao lado do preço cobrado pelas principais companhias aéreas para que você tenha certeza de estar fazendo o melhor negócio.
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white border border-gray-200 p-6 space-y-3">
+          <div className="rounded-2xl bg-white border border-zinc-200 p-7 space-y-3">
             <Music className="w-8 h-8 text-[#BD9472]" />
-            <h3 className="text-lg font-bold text-[#172C3B]">
-              Especialistas em Logística de Shows
+            <h3 className="font-display text-lg font-bold text-[#09090B]">
+              Paixão por Shows e Eventos
             </h3>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              Conhecemos os acessos dos principais estádios e arenas das Américas e da Europa, garantindo voos e hotéis pensados para você viver o espetáculo sem imprevistos.
+            <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed">
+              Sabemos que viajar para um show tem hora marcada. Por isso, ajudamos você a escolher voos com janelas seguras de chegada e partida.
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white border border-gray-200 p-6 space-y-3">
-            <Globe className="w-8 h-8 text-[#BD9472]" />
-            <h3 className="text-lg font-bold text-[#172C3B]">
-              Tecnologia SaaS Comparativa
+          <div className="rounded-2xl bg-white border border-zinc-200 p-7 space-y-3">
+            <ShieldCheck className="w-8 h-8 text-[#BD9472]" />
+            <h3 className="font-display text-lg font-bold text-[#09090B]">
+              Segurança do Início ao Embarque
             </h3>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              Nosso sistema próprio mostra a composição exata do preço da passagem e compara lado a lado com o site oficial de cada companhia aérea.
+            <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed">
+              Toda emissão gera o código localizador oficial da companhia aérea, acompanhado pelo nosso suporte humano via WhatsApp.
             </p>
           </div>
         </div>
 
-        {/* Seção: Identidade Visual e Evolução do Símbolo */}
-        <div className="rounded-2xl bg-[#172C3B] text-[#E8E2D9] p-8 border border-[#BD9472]/40 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-[#BD9472]">
-                Design System Oficial Sing
-              </span>
-              <h2 className="text-2xl font-extrabold text-white mt-1">
-                Nossa Paleta de Cores e Evolução Responsiva da Marca
-              </h2>
-            </div>
-            <div className="flex items-center gap-3 bg-[#0E1B24] px-4 py-2.5 rounded-xl border border-[#BD9472]/35">
-              <SingCompactSymbol className="w-10 h-10" />
-              <div className="text-xs">
-                <div className="font-bold text-white">Símbolo Simplificado (Miniaturas)</div>
-                <div className="text-[#E8E2D9]/70">Arco + Avião + Pin Musical em Cobre</div>
-              </div>
-            </div>
+        <div className="rounded-2xl bg-[#172C3B] text-white p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <h2 className="font-display text-2xl font-bold">
+              Pronto para encontrar o voo ideal para o seu próximo show?
+            </h2>
+            <p className="text-xs sm:text-sm text-[#E8E2D9]/80">
+              Utilize nosso comparador de passagens aéreas agora mesmo e veja a diferença.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-xl bg-[#0E1B24] p-5 border border-white/10 space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#172C3B] border border-white/30" />
-                <div>
-                  <div className="font-bold text-white text-sm">Azul-Petróleo Profundo</div>
-                  <div className="font-mono text-xs text-[#BD9472]">#172C3B</div>
-                </div>
-              </div>
-              <p className="text-xs text-[#E8E2D9]/80">
-                Transmite confiança, segurança e profissionalismo para cada emissão aérea e operação corporativa.
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-[#0E1B24] p-5 border border-white/10 space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#BD9472] border border-white/30" />
-                <div>
-                  <div className="font-bold text-white text-sm">Cobre Suave</div>
-                  <div className="font-mono text-xs text-[#BD9472]">#BD9472</div>
-                </div>
-              </div>
-              <p className="text-xs text-[#E8E2D9]/80">
-                Representa experiências especiais, calor humano, luzes de palco e exclusividade.
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-[#0E1B24] p-5 border border-white/10 space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#E8E2D9] border border-white/30" />
-                <div>
-                  <div className="font-bold text-white text-sm">Areia Clara</div>
-                  <div className="font-mono text-xs text-[#BD9472]">#E8E2D9</div>
-                </div>
-              </div>
-              <p className="text-xs text-[#E8E2D9]/80">
-                Traz leveza, equilíbrio visual e versatilidade para leitura confortável de tarifas e roteiros.
-              </p>
-            </div>
-          </div>
+          <Link
+            href="/pesquisa"
+            className="shrink-0 inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#BD9472] text-[#09090B] font-display font-bold text-sm hover:bg-[#D4AF8E] transition"
+          >
+            <span>Pesquisar Passagens</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </section>
     </div>

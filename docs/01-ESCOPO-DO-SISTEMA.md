@@ -6,7 +6,11 @@
 ---
 
 ## 1. Visão Geral do Produto
-O sistema **Sing Viagens e Turismo** é uma plataforma web moderna (SaaS) voltada tanto para a **conversão comercial e autoridade de marca** quanto para a **operação automatizada de busca, precificação parametrizada (markup/lucro) e comparação inteligente de passagens aéreas e hospedagens**, com área de membros para clientes (histórico de pesquisas e compras) e painel administrativo para gestão de regras de negócio.
+O sistema **Sing Viagens e Turismo** é uma plataforma web moderna (SaaS) voltada para conectar o cliente ao seu show, festival ou destino favorito através da **emissão inteligente de passagens aéreas** (Fase 1). A plataforma integra motor de busca de voos, precificação parametrizada por milheiro + spread de lucro e comparação transparente lado a lado com o site oficial das companhias aéreas, além de área de membros (`/conta`) e painel administrativo (`/admin`).
+
+> **Faseamento Estratégico (Roadmap)**:
+> - **Fase 1 (Atual — Produção)**: Foco 100% exclusivo na comercialização e emissão de **Passagens Aéreas** conectando passageiros a shows, festivais e destinos nacionais/internacionais, com linguagem 100% voltada ao consumidor final (sem jargões técnicos como "IATA", "Design Tokens" ou badges de versão).
+> - **Fase 2 (Futuro)**: Expansão para Pacotes Completos, Hospedagens próximas a arenas, Portfólio de Cases e Mural de Depoimentos/Reviews.
 
 ---
 
