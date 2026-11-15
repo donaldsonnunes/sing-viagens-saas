@@ -151,22 +151,40 @@ export function TicketVoucherModal({ order, onClose }: TicketVoucherModalProps) 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200">
-                  {passengersList.map((p: any, idx: number) => (
-                    <tr key={idx}>
-                      <td className="py-2.5 px-3 font-semibold text-[#172C3B]">
-                        {p.typeLabel}
-                      </td>
-                      <td className="py-2.5 px-3 font-bold text-[#09090B]">
-                        {p.fullName}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-zinc-600">
-                        {p.documentCpfOrPassport}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-zinc-600">
-                        {p.birthDate}
-                      </td>
-                    </tr>
-                  ))}
+                  {passengersList.map((p: any, idx: number) => {
+                    const displayFullName =
+                      p.firstName && p.lastName
+                        ? `${p.firstName} ${p.lastName}`
+                        : p.fullName;
+                    const displayDoc = p.cpf
+                      ? p.passport
+                        ? `CPF: ${p.cpf} • Passaporte: ${p.passport}`
+                        : p.cpf
+                      : p.documentCpfOrPassport;
+                    return (
+                      <tr key={idx}>
+                        <td className="py-2.5 px-3 font-semibold text-[#172C3B]">
+                          {p.typeLabel}
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-[#09090B]">
+                          <div>{displayFullName}</div>
+                          {(p.email || p.phone) && (
+                            <div className="text-[10px] font-normal text-zinc-500">
+                              {p.email || ""}
+                              {p.email && p.phone ? " • " : ""}
+                              {p.phone || ""}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-zinc-600">
+                          {displayDoc}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-zinc-600">
+                          {p.birthDate}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

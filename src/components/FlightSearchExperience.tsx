@@ -652,7 +652,11 @@ export function FlightSearchExperience({
                   Calendário Pré-Filtro de Custo Fixo (Escolha a melhor data antes de gastar créditos na API):
                 </span>
                 <span className="font-mono text-emerald-700 font-bold">
-                  Economia Acumulada na Sessão: {telemetry.totalSessionCreditsSaved} créditos
+                  Economia na Sessão: {telemetry.totalSessionCreditsSaved} créd. (R${" "}
+                  {((telemetry.totalSessionCreditsSaved || 0) * 0.01)
+                    .toFixed(2)
+                    .replace(".", ",")}
+                  )
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">

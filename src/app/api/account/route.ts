@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import {
+  deleteFrequentPassengerFromSupabase,
   fetchDatabaseFromSupabase,
+  fetchFrequentPassengersFromSupabase,
+  FrequentPassengerItem,
   insertOrderToSupabase,
   insertUserToSupabase,
   isSuperAdminEmail,
+  PassengerDetailItem,
   SUPABASE_KEY,
   SUPABASE_URL,
   updateOrderStatusInSupabase,
+  upsertFrequentPassengerToSupabase,
   writeDb,
 } from "@/lib/db";
 import { bookAirfareOnApiViagens } from "@/lib/apiViagensService";
@@ -14,7 +19,10 @@ import { bookAirfareOnApiViagens } from "@/lib/apiViagensService";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const email = searchParams.get("email") || "cliente@singviagens.com.br";
-  const db = await fetchDatabaseFromSupabase();
+  const [db, frequentPassengers] = await Promise.all([
+    fetchDatabaseFromSupabase(),
+    fetchFrequentPassengersFromSupabase(email),
+  ]);
 
   const user =
     db.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ||
@@ -48,6 +56,7 @@ export async function GET(request: Request) {
     },
     searchHistory: searchHistory.length > 0 ? searchHistory : db.searchHistory.slice(0, 8),
     orders: orders.length > 0 ? orders : db.orders,
+    frequentPassengers,
   });
 }
 
@@ -273,6 +282,64 @@ export async function POST(request: Request) {
     // 5. Criação de Pedido no Checkout (com reserva PNR gratuita em POST /v1/airfares/book)
     if (body.action === "CREATE_ORDER") {
       let pnr = `SNG${Math.floor(100 + Math.random() * 900)}`;
+      const userEmail = String(
+        body.userEmail || "cliente@singviagens.com.br"
+      ).toLowerCase();
+      const passengersDetails: PassengerDetailItem[] = Array.isArray(
+        body.passengersDetails
+      )
+        ? body.passengersDetails
+        : [];
+
+      // Salva automaticamente passageiros novos marcados para cadastro na hora nos Passageiros Frequentes
+      if (passengersDetails.length > 0) {
+        const existingPaxList = await fetchFrequentPassengersFromSupabase(userEmail);
+        for (const pax of passengersDetails) {
+          if (pax.saveAsFrequentPassenger !== false) {
+            const fullParts = String(pax.fullName || "")
+              .trim()
+              .split(/\s+/);
+            const firstName = (pax.firstName || fullParts[0] || "").trim();
+            const lastName = (
+              pax.lastName ||
+              fullParts.slice(1).join(" ") ||
+              ""
+            ).trim();
+            const cpfClean = (
+              pax.cpf ||
+              pax.documentCpfOrPassport ||
+              ""
+            ).trim();
+
+            if (firstName && lastName && pax.birthDate && cpfClean) {
+              const matchedByIdOrCpf = existingPaxList.find(
+                (ep) =>
+                  (pax.frequentPassengerId && ep.id === pax.frequentPassengerId) ||
+                  ep.cpf.replace(/\D/g, "") === cpfClean.replace(/\D/g, "")
+              );
+
+              const paxRecord: FrequentPassengerItem = {
+                id:
+                  matchedByIdOrCpf?.id ||
+                  pax.frequentPassengerId ||
+                  `PAX-${Date.now()}-${Math.floor(100 + Math.random() * 899)}`,
+                userEmail,
+                firstName,
+                lastName,
+                birthDate: pax.birthDate,
+                cpf: cpfClean,
+                email: pax.email || matchedByIdOrCpf?.email || "",
+                phone: pax.phone || matchedByIdOrCpf?.phone || "",
+                passport: pax.passport || matchedByIdOrCpf?.passport || "",
+                createdAt:
+                  matchedByIdOrCpf?.createdAt || new Date().toISOString(),
+              };
+
+              await upsertFrequentPassengerToSupabase(paxRecord);
+            }
+          }
+        }
+      }
 
       if (body.offerId) {
         try {
@@ -280,8 +347,8 @@ export async function POST(request: Request) {
             .trim()
             .toUpperCase()
             .split(/\s+/);
-          const firstName = nameParts[0] || "CLIENTE";
-          const lastName = nameParts.slice(1).join(" ") || "SING";
+          const fallbackFirst = nameParts[0] || "CLIENTE";
+          const fallbackLast = nameParts.slice(1).join(" ") || "SING";
           const cleanDigits = String(body.customerPhone || "11999998888").replace(
             /\D/g,
             ""
@@ -289,22 +356,55 @@ export async function POST(request: Request) {
           const areaCode = cleanDigits.slice(0, 2) || "11";
           const phoneNum = cleanDigits.slice(2) || "999998888";
 
+          const apiPassengers =
+            passengersDetails.length > 0
+              ? passengersDetails.map((p) => {
+                  const parts = String(p.fullName || "")
+                    .trim()
+                    .toUpperCase()
+                    .split(/\s+/);
+                  const fName = (p.firstName || parts[0] || fallbackFirst)
+                    .trim()
+                    .toUpperCase();
+                  const lName = (
+                    p.lastName ||
+                    parts.slice(1).join(" ") ||
+                    fallbackLast
+                  )
+                    .trim()
+                    .toUpperCase();
+                  const isChild = p.typeLabel
+                    ?.toLowerCase()
+                    .includes("criança");
+                  return {
+                    first_name: fName,
+                    last_name: lName,
+                    age_group: (isChild ? "CHD" : "ADT") as "ADT" | "CHD" | "INF",
+                    birth_date: p.birthDate || body.birthDate || "1990-05-20",
+                    gender: (body.gender === "F" ? "F" : "M") as "M" | "F",
+                    cpf: String(
+                      p.cpf || p.documentCpfOrPassport || body.cpf || "39053344705"
+                    ).replace(/\D/g, ""),
+                  };
+                })
+              : [
+                  {
+                    first_name: fallbackFirst,
+                    last_name: fallbackLast,
+                    age_group: "ADT" as const,
+                    birth_date: body.birthDate || "1990-05-20",
+                    gender: (body.gender === "F" ? "F" : "M") as "M" | "F",
+                    cpf: String(body.cpf || "39053344705").replace(/\D/g, ""),
+                  },
+                ];
+
           const bookingRes = await bookAirfareOnApiViagens({
             offer_id: String(body.offerId),
-            passengers: [
-              {
-                first_name: firstName,
-                last_name: lastName,
-                age_group: "ADT",
-                birth_date: body.birthDate || "1990-05-20",
-                gender: body.gender === "F" ? "F" : "M",
-                cpf: String(body.cpf || "39053344705").replace(/\D/g, ""),
-              },
-            ],
+            passengers: apiPassengers,
             contacts: [
               {
-                name: `${firstName} ${lastName}`,
-                email: body.userEmail || "cliente@singviagens.com.br",
+                name: `${fallbackFirst} ${fallbackLast}`,
+                email: userEmail,
                 country_code: "55",
                 area_code: areaCode,
                 number: phoneNum,
@@ -331,7 +431,7 @@ export async function POST(request: Request) {
         id: `ord-${Date.now()}`,
         pnr,
         userId: body.userId || "usr-demo-1",
-        userEmail: body.userEmail || "cliente@singviagens.com.br",
+        userEmail,
         customerName: body.customerName || "Cliente VIP Sing",
         customerPhone: body.customerPhone || "(11) 98888-7777",
         payerCpf: body.payerCpf || "",
@@ -342,9 +442,7 @@ export async function POST(request: Request) {
         departureDate: body.departureDate || "2026-12-10",
         returnDate: body.returnDate,
         passengersSummary: body.passengersSummary || "1 Adulto",
-        passengersDetails: Array.isArray(body.passengersDetails)
-          ? body.passengersDetails
-          : [],
+        passengersDetails,
         singTotalPrice,
         airlineDirectReferencePrice: Number(body.airlineDirectReferencePrice) || 1590,
         savingsAmount,
@@ -357,10 +455,80 @@ export async function POST(request: Request) {
       db.orders.unshift(newOrder);
       await insertOrderToSupabase(newOrder);
       writeDb(db);
-      return NextResponse.json({ success: true, order: newOrder });
+      const updatedFrequentPassengers =
+        await fetchFrequentPassengersFromSupabase(userEmail);
+      return NextResponse.json({
+        success: true,
+        order: newOrder,
+        frequentPassengers: updatedFrequentPassengers,
+      });
     }
 
-    // 6. Cancelamento / Reativação de Pedido pelo Usuário ou Admin
+    // 6. Cadastro ou Edição de Passageiro Frequente (Sem limites por conta)
+    if (body.action === "SAVE_FREQUENT_PASSENGER") {
+      const userEmail = String(
+        body.userEmail || "cliente@singviagens.com.br"
+      )
+        .trim()
+        .toLowerCase();
+      const firstName = String(body.firstName || "").trim();
+      const lastName = String(body.lastName || "").trim();
+      const birthDate = String(body.birthDate || "").trim();
+      const cpf = String(body.cpf || "").trim();
+
+      if (!firstName || !lastName || !birthDate || !cpf) {
+        return NextResponse.json(
+          {
+            error:
+              "Preencha os campos obrigatórios do passageiro: Nome, Sobrenome, Data de Nascimento e CPF.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const pax: FrequentPassengerItem = {
+        id:
+          body.id ||
+          `PAX-${Date.now()}-${Math.floor(100 + Math.random() * 899)}`,
+        userEmail,
+        firstName,
+        lastName,
+        birthDate,
+        cpf,
+        email: String(body.email || "").trim(),
+        phone: String(body.phone || "").trim(),
+        passport: String(body.passport || "").trim().toUpperCase(),
+        createdAt: body.createdAt || new Date().toISOString(),
+      };
+
+      await upsertFrequentPassengerToSupabase(pax);
+      const frequentPassengers =
+        await fetchFrequentPassengersFromSupabase(userEmail);
+
+      return NextResponse.json({
+        success: true,
+        passenger: pax,
+        frequentPassengers,
+      });
+    }
+
+    // 7. Remoção de Passageiro Frequente
+    if (body.action === "DELETE_FREQUENT_PASSENGER" && body.passengerId) {
+      const userEmail = String(
+        body.userEmail || "cliente@singviagens.com.br"
+      )
+        .trim()
+        .toLowerCase();
+      await deleteFrequentPassengerFromSupabase(String(body.passengerId));
+      const frequentPassengers =
+        await fetchFrequentPassengersFromSupabase(userEmail);
+      return NextResponse.json({
+        success: true,
+        frequentPassengers,
+      });
+    }
+
+    // 8. Cancelamento / Reativação de Pedido pelo Usuário ou Admin
     if (body.action === "UPDATE_ORDER_STATUS" && body.orderId) {
       const targetStatus: "CONFIRMADO" | "CANCELADO" =
         body.status === "CANCELADO" ? "CANCELADO" : "CONFIRMADO";

@@ -3,6 +3,8 @@ import { AIRPORTS, Airport } from "@/data/airports";
 import {
   AirlineKey,
   PricingRuleConfig,
+  SUPABASE_KEY,
+  SUPABASE_URL,
   logExternalApiTestToSupabase,
 } from "@/lib/db";
 import {
@@ -59,8 +61,22 @@ export const APIVIAGENS_BASE_URL =
  */
 export const OFFER_CACHE_TTL_MS = 50 * 60 * 1000; // 50 minutos
 export const MILES_CACHE_TTL_MS = 120 * 60 * 1000; // 120 minutos
-export const CREDITS_PER_PROVIDER_SEARCH = 25; // Retornado por GET /v1/account (credits_per_search: 25)
+export const CREDITS_PER_PROVIDER_SEARCH = 25; // Retornado por GET /v1/account (25 créditos = R$ 0,25)
+export const BRL_PER_CREDIT = 0.01; // 1 crédito = R$ 0,01 (25 créditos = R$ 0,25 por busca com resultado)
 export const MAX_CONCURRENT_APIVIAGENS = 5; // Retornado por GET /v1/account (max_concurrent: 5)
+
+// Cache Negativo (15 min): Quando um provider retorna "Sem resultado" ou "timeout" (como no print da Smiles),
+// a APIVIAGENS não cobra créditos, mas demora ~15s para dar timeout. Guardar o "Sem resultado" por 15 min
+// evita travar a tela do próximo usuário esperando o mesmo timeout e poupa o limite max_concurrent: 5!
+export const NEGATIVE_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
+
+const globalForNegativeCache = globalThis as unknown as {
+  __singApiViagensNegativeCache?: Map<string, number>;
+};
+
+const negativeProviderCache =
+  globalForNegativeCache.__singApiViagensNegativeCache ||
+  (globalForNegativeCache.__singApiViagensNegativeCache = new Map());
 
 export interface RouteProviderSelection {
   routeType: "DOMESTIC_BR" | "SOUTH_AMERICA" | "NORTH_AMERICA" | "EUROPE" | "OTHER_INTL";
@@ -145,11 +161,14 @@ interface CacheEntry<T> {
 // Estado global persistido no processo Node.js (evita perda em HMR no Next.js dev)
 const globalForApiViagens = globalThis as unknown as {
   __singApiViagensCache?: Map<string, CacheEntry<any>>;
+  __singApiViagensLegIndex?: Map<string, CacheEntry<FlightOfferResult[]>>;
+  __singApiViagensMonthlyIndex?: Map<string, PreSearchCalendarDay[]>;
   __singApiViagensInFlight?: Map<string, Promise<any>>;
   __singApiViagensMetrics?: {
     creditsConsumed: number;
     creditsSaved: number;
     cacheHits: number;
+    intersectionHits: number;
     requestsCoalesced: number;
   };
 };
@@ -157,6 +176,16 @@ const globalForApiViagens = globalThis as unknown as {
 const searchCache =
   globalForApiViagens.__singApiViagensCache ||
   (globalForApiViagens.__singApiViagensCache = new Map());
+
+// Índice Atômico por Trecho Direcional: (origin|destination|date|cabin) -> permite interseção entre buscas diferentes!
+const legInventoryIndex =
+  globalForApiViagens.__singApiViagensLegIndex ||
+  (globalForApiViagens.__singApiViagensLegIndex = new Map());
+
+// Índice Mensal Completo (30/31 dias): (origin|destination|YYYY-MM|cabin) -> armazena o mês inteiro da rota!
+const monthlyRouteIndex =
+  globalForApiViagens.__singApiViagensMonthlyIndex ||
+  (globalForApiViagens.__singApiViagensMonthlyIndex = new Map());
 
 const inFlightRequests =
   globalForApiViagens.__singApiViagensInFlight ||
@@ -168,6 +197,7 @@ const sessionMetrics =
     creditsConsumed: 0,
     creditsSaved: 0,
     cacheHits: 0,
+    intersectionHits: 0,
     requestsCoalesced: 0,
   });
 
@@ -695,17 +725,38 @@ export async function searchFlightsWithApiViagensOptimization(params: {
   const nowMs = Date.now();
   const existingCache = searchCache.get(cacheKey);
 
-  // 3. Verifica Cache Ativo (50 min para preservar validade de ~1h do offer_id)
-  if (!params.forceRefresh && existingCache && existingCache.expiresAtMs > nowMs) {
+  // Chave de Interseção Atômica do Trecho de Ida: permite reaproveitar o trecho de ida
+  // mesmo quando o próximo usuário muda a data de volta ou busca apenas "Somente Ida"!
+  const outboundLegKey = `leg_${params.searchParams.origin.toUpperCase()}_${params.searchParams.destination.toUpperCase()}_${
+    params.searchParams.departureDate
+  }_${params.searchParams.cabinClass}`;
+  const existingLegIntersection = legInventoryIndex.get(outboundLegKey);
+
+  // 3. Verifica Cache Ativo ou Interseção Atômica de Trecho (50 min para preservar validade de ~1h do offer_id)
+  const hitEntry =
+    (!params.forceRefresh && existingCache && existingCache.expiresAtMs > nowMs
+      ? existingCache
+      : null) ||
+    (!params.forceRefresh &&
+    existingLegIntersection &&
+    existingLegIntersection.expiresAtMs > nowMs
+      ? existingLegIntersection
+      : null);
+
+  if (hitEntry) {
     sessionMetrics.cacheHits += 1;
-    // Ao retornar do cache, economizamos todos os 7 créditos que uma busca bruta gastaria
-    sessionMetrics.creditsSaved += ALL_APIVIAGENS_PROVIDERS.length;
+    if (!existingCache && existingLegIntersection) {
+      sessionMetrics.intersectionHits += 1;
+    }
+    const savedCreditsOnHit =
+      ALL_APIVIAGENS_PROVIDERS.length * CREDITS_PER_PROVIDER_SEARCH;
+    sessionMetrics.creditsSaved += savedCreditsOnHit;
 
     const telemetry: ApiViagensOptimizationTelemetry = {
       cacheKey,
       cacheHit: true,
-      cacheAgeSeconds: Math.round((nowMs - existingCache.createdAtMs) / 1000),
-      cacheExpiresInSeconds: Math.round((existingCache.expiresAtMs - nowMs) / 1000),
+      cacheAgeSeconds: Math.round((nowMs - hitEntry.createdAtMs) / 1000),
+      cacheExpiresInSeconds: Math.round((hitEntry.expiresAtMs - nowMs) / 1000),
       liveApiConnected: credentials.isConfigured,
       strategyApplied: strategy,
       roundTripConsolidated: params.searchParams.tripType === "ROUND_TRIP",
@@ -713,7 +764,7 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       queriedProviders: routeSelection.queriedProviders,
       skippedProviders: routeSelection.skippedProviders,
       creditsConsumedThisCall: 0,
-      creditsSavedThisCall: ALL_APIVIAGENS_PROVIDERS.length,
+      creditsSavedThisCall: savedCreditsOnHit,
       totalSessionCreditsConsumed: sessionMetrics.creditsConsumed,
       totalSessionCreditsSaved: sessionMetrics.creditsSaved,
       totalSessionCacheHits: sessionMetrics.cacheHits,
@@ -721,11 +772,11 @@ export async function searchFlightsWithApiViagensOptimization(params: {
 
     const preSearchCalendar = generateZeroCreditDateMatrix(
       params.searchParams,
-      existingCache.data
+      hitEntry.data
     );
 
     return {
-      offers: existingCache.data,
+      offers: hitEntry.data,
       telemetry,
       preSearchCalendar,
     };
@@ -771,11 +822,15 @@ export async function searchFlightsWithApiViagensOptimization(params: {
     if (shouldCallLiveApi) {
       try {
         const startLiveMs = Date.now();
+        // Filtra providers que deram "Sem resultado" / "timeout" nos últimos 15 min nesta mesma rota/data
+        const activeProviders = routeSelection.queriedProviders.filter((p) => {
+          const negKey = `neg_${params.searchParams.origin}_${params.searchParams.destination}_${params.searchParams.departureDate}_${p}`;
+          const exp = negativeProviderCache.get(negKey);
+          return !exp || exp <= Date.now();
+        });
+
         // Respeita o limite max_concurrent: 5 da conta APIVIAGENS
-        const cappedProviders = routeSelection.queriedProviders.slice(
-          0,
-          MAX_CONCURRENT_APIVIAGENS
-        );
+        const cappedProviders = activeProviders.slice(0, MAX_CONCURRENT_APIVIAGENS);
         const settled = await Promise.allSettled(
           cappedProviders.map((provider) =>
             fetchSingleProviderFromApiViagens({
@@ -796,6 +851,15 @@ export async function searchFlightsWithApiViagensOptimization(params: {
             }> => r.status === "fulfilled"
           )
           .map((r) => r.value);
+
+        // Registra no Cache Negativo (15 min) qualquer provider que retornou "Sem resultado" ou "timeout"
+        for (const r of successfulResults) {
+          const list = extractFlightsArrayFromPayload(r.payload, r.provider);
+          if (list.length === 0) {
+            const negKey = `neg_${params.searchParams.origin}_${params.searchParams.destination}_${params.searchParams.departureDate}_${r.provider}`;
+            negativeProviderCache.set(negKey, Date.now() + NEGATIVE_CACHE_TTL_MS);
+          }
+        }
 
         if (successfulResults.length > 0) {
           const billableResults = successfulResults.filter(
@@ -863,6 +927,31 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       providers: routeSelection.queriedProviders,
     });
 
+    // Indexação Atômica por Trecho (Ida e Volta separadas para permitir interseção futura!)
+    legInventoryIndex.set(outboundLegKey, {
+      key: outboundLegKey,
+      data: offers,
+      createdAtMs: Date.now(),
+      expiresAtMs: Date.now() + ttl,
+      providers: routeSelection.queriedProviders,
+    });
+
+    if (params.searchParams.tripType === "ROUND_TRIP" && params.searchParams.returnDate) {
+      const inboundLegKey = `leg_${params.searchParams.destination.toUpperCase()}_${params.searchParams.origin.toUpperCase()}_${
+        params.searchParams.returnDate
+      }_${params.searchParams.cabinClass}`;
+      legInventoryIndex.set(inboundLegKey, {
+        key: inboundLegKey,
+        data: offers,
+        createdAtMs: Date.now(),
+        expiresAtMs: Date.now() + ttl,
+        providers: routeSelection.queriedProviders,
+      });
+    }
+
+    // Indexa automaticamente os 30 dias do mês (YYYY-MM) para a mesma Origem -> Destino
+    indexFullMonthForRoute(params.searchParams, offers);
+
     const realCreditsSpent = shouldCallLiveApi
       ? actualProviderCalls * CREDITS_PER_PROVIDER_SEARCH
       : 0;
@@ -923,16 +1012,21 @@ export async function searchFlightsWithApiViagensOptimization(params: {
 
 /**
  * ============================================================================
- * CAMADA 5: MATRIZ DE PRÉ-BUSCA DE DATAS (CUSTO ZERO DE CRÉDITOS NA API)
+ * CAMADA 5: INDEXAÇÃO MENSAL COMPLETA & INTERSEÇÃO DE DATAS (30/31 DIAS)
  * ============================================================================
- * Permite ao usuário visualizar 7 dias de preços ao redor da data desejada
- * usando dados em cache + curva de sazonalidade da malha aérea sem gastar
- * 7 chamadas extras na APIVIAGENS.
+ * Sempre que uma rota (Origem -> Destino) é pesquisada, armazenamos o mês inteiro
+ * (YYYY-MM) indexado por (origin, destination, yearMonth, cabinClass) na memória
+ * e sincronizamos com o PostgreSQL/Supabase (monthly_fare_calendar & flight_leg_inventory).
  */
-export function generateZeroCreditDateMatrix(
+export function indexFullMonthForRoute(
   searchParams: FlightSearchParams,
   referenceOffers: FlightOfferResult[]
 ): PreSearchCalendarDay[] {
+  const yearMonth = searchParams.departureDate.slice(0, 7); // Ex: "2026-11"
+  const monthKey = `month_${searchParams.origin.toUpperCase()}_${searchParams.destination.toUpperCase()}_${yearMonth}_${
+    searchParams.cabinClass
+  }`;
+
   const lowestBasePrice =
     referenceOffers.length > 0
       ? Math.min(
@@ -945,46 +1039,148 @@ export function generateZeroCreditDateMatrix(
       ? Math.min(...referenceOffers.map((o) => o.pricingBreakdown.totalMilesRequired))
       : 14000;
 
-  const baseDate = new Date(`${searchParams.departureDate}T12:00:00`);
-  if (isNaN(baseDate.getTime())) {
-    return [];
-  }
-
+  const [yearNum, monthNum] = yearMonth.split("-").map(Number);
+  const daysInMonth = new Date(yearNum || 2026, monthNum || 11, 0).getDate();
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-  // Fatores reais de tarifação aérea por dia da semana (Terça/Quarta mais baratos, Sexta/Domingo mais caros)
   const dayOfWeekMultipliers = [1.14, 0.98, 0.88, 0.91, 1.03, 1.18, 0.95];
 
-  const days: PreSearchCalendarDay[] = [];
+  const existingMonth = monthlyRouteIndex.get(monthKey);
+  const fullMonthDays: PreSearchCalendarDay[] = [];
   let minPriceSeen = Number.MAX_SAFE_INTEGER;
 
-  for (let offset = -3; offset <= 3; offset++) {
-    const d = new Date(baseDate.getTime() + offset * 24 * 60 * 60 * 1000);
-    const isoDate = d.toISOString().slice(0, 10);
+  for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+    const isoDate = `${yearMonth}-${String(dayNum).padStart(2, "0")}`;
+    const d = new Date(`${isoDate}T12:00:00`);
     const dow = d.getDay();
-    const factor = offset === 0 ? 1.0 : dayOfWeekMultipliers[dow];
 
-    const estimatedPrice = Math.round(lowestBasePrice * factor);
-    const estimatedMiles = Math.round((lowestBaseMiles * factor) / 100) * 100;
+    // Verifica se este dia específico já tem trecho real cacheado no legInventoryIndex
+    const legKey = `leg_${searchParams.origin.toUpperCase()}_${searchParams.destination.toUpperCase()}_${isoDate}_${
+      searchParams.cabinClass
+    }`;
+    const cachedLeg = legInventoryIndex.get(legKey);
+    const existingDay = existingMonth?.find(
+      (x: PreSearchCalendarDay) => x.date === isoDate
+    );
+
+    let estimatedPrice: number;
+    let estimatedMiles: number;
+    let source: "CACHE_REAL" | "FIXED_COST_MATRIX" = "FIXED_COST_MATRIX";
+
+    if (cachedLeg && cachedLeg.data.length > 0) {
+      estimatedPrice = Math.min(
+        ...cachedLeg.data.map(
+          (o: FlightOfferResult) => o.pricingBreakdown.singFinalSalePriceTotal
+        )
+      );
+      estimatedMiles = Math.min(
+        ...cachedLeg.data.map(
+          (o: FlightOfferResult) => o.pricingBreakdown.totalMilesRequired
+        )
+      );
+      source = "CACHE_REAL";
+    } else if (existingDay && existingDay.source === "CACHE_REAL") {
+      estimatedPrice = existingDay.estimatedLowestSingBRL;
+      estimatedMiles = existingDay.estimatedLowestMiles;
+      source = "CACHE_REAL";
+    } else {
+      const factor = isoDate === searchParams.departureDate ? 1.0 : dayOfWeekMultipliers[dow];
+      estimatedPrice = Math.round(lowestBasePrice * factor);
+      estimatedMiles = Math.round((lowestBaseMiles * factor) / 100) * 100;
+      if (isoDate === searchParams.departureDate) {
+        source = "CACHE_REAL";
+      }
+    }
 
     if (estimatedPrice < minPriceSeen) {
       minPriceSeen = estimatedPrice;
     }
 
-    days.push({
+    fullMonthDays.push({
       date: isoDate,
       dayOfWeekLabel: weekDays[dow],
       estimatedLowestSingBRL: estimatedPrice,
       estimatedLowestMiles: estimatedMiles,
       bestProviderHint: dow === 2 || dow === 3 ? "smiles" : "latam",
       isCheapestInWindow: false,
-      isSelectedDate: offset === 0,
-      source: offset === 0 ? "CACHE_REAL" : "FIXED_COST_MATRIX",
+      isSelectedDate: isoDate === searchParams.departureDate,
+      source,
     });
   }
 
-  return days.map((day) => ({
+  const finalizedMonth = fullMonthDays.map((day) => ({
     ...day,
     isCheapestInWindow: day.estimatedLowestSingBRL === minPriceSeen,
+  }));
+
+  monthlyRouteIndex.set(monthKey, finalizedMonth);
+
+  // Sincroniza de forma assíncrona (fire-and-forget) com a tabela monthly_fare_calendar no Supabase
+  void syncMonthlyIndexToSupabase(searchParams, yearMonth, finalizedMonth);
+
+  return finalizedMonth;
+}
+
+async function syncMonthlyIndexToSupabase(
+  searchParams: FlightSearchParams,
+  yearMonth: string,
+  days: PreSearchCalendarDay[]
+) {
+  try {
+    const rows = days.map((d) => ({
+      id: `cal_${searchParams.origin.toUpperCase()}_${searchParams.destination.toUpperCase()}_${
+        d.date
+      }_${searchParams.cabinClass}`,
+      origin: searchParams.origin.toUpperCase(),
+      destination: searchParams.destination.toUpperCase(),
+      year_month: yearMonth,
+      flight_date: d.date,
+      cabin_class: searchParams.cabinClass,
+      lowest_sing_brl: d.estimatedLowestSingBRL,
+      lowest_airline_cash_brl: Math.round(d.estimatedLowestSingBRL * 1.25),
+      lowest_miles: d.estimatedLowestMiles,
+      best_provider: d.bestProviderHint,
+      is_api_verified: d.source === "CACHE_REAL",
+      updated_at: new Date().toISOString(),
+    }));
+
+    await fetch(`${SUPABASE_URL}/rest/v1/monthly_fare_calendar?on_conflict=id`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(rows),
+    });
+  } catch {
+    // Tabela opcional caso a migration ainda não tenha sido aplicada no banco remoto
+  }
+}
+
+export function generateZeroCreditDateMatrix(
+  searchParams: FlightSearchParams,
+  referenceOffers: FlightOfferResult[]
+): PreSearchCalendarDay[] {
+  const fullMonth = indexFullMonthForRoute(searchParams, referenceOffers);
+  const selectedIdx = fullMonth.findIndex(
+    (d) => d.date === searchParams.departureDate
+  );
+
+  if (selectedIdx === -1) {
+    return fullMonth.slice(0, 7);
+  }
+
+  const startIdx = Math.max(0, Math.min(selectedIdx - 3, fullMonth.length - 7));
+  const window7 = fullMonth.slice(startIdx, startIdx + 7);
+  const minWindowPrice = Math.min(
+    ...window7.map((d) => d.estimatedLowestSingBRL)
+  );
+
+  return window7.map((d) => ({
+    ...d,
+    isSelectedDate: d.date === searchParams.departureDate,
+    isCheapestInWindow: d.estimatedLowestSingBRL === minWindowPrice,
   }));
 }
 

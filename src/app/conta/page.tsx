@@ -20,6 +20,10 @@ import {
   ArrowRight,
   X,
   FileText,
+  Users,
+  Plus,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 
 const SUPABASE_PROJECT_URL =
@@ -80,7 +84,20 @@ export default function ContaPage() {
 
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [frequentPassengers, setFrequentPassengers] = useState<any[]>([]);
   const [selectedVoucherOrder, setSelectedVoucherOrder] = useState<any>(null);
+
+  // Estado do formulário de Passageiros Frequentes (Sem limites por conta)
+  const [editingPaxId, setEditingPaxId] = useState<string | null>(null);
+  const [paxFirstName, setPaxFirstName] = useState("");
+  const [paxLastName, setPaxLastName] = useState("");
+  const [paxBirthDate, setPaxBirthDate] = useState("");
+  const [paxCpf, setPaxCpf] = useState("");
+  const [paxEmail, setPaxEmail] = useState("");
+  const [paxPhone, setPaxPhone] = useState("");
+  const [paxPassport, setPaxPassport] = useState("");
+  const [savingPax, setSavingPax] = useState(false);
+  const [paxSuccessMsg, setPaxSuccessMsg] = useState("");
 
   const saveSessionAndNotify = (loggedUser: any) => {
     localStorage.setItem("sing_user", JSON.stringify(loggedUser));
@@ -96,6 +113,88 @@ export default function ContaPage() {
     const data = await res.json();
     if (data.searchHistory) setSearchHistory(data.searchHistory);
     if (data.orders) setOrders(data.orders);
+    if (data.frequentPassengers) setFrequentPassengers(data.frequentPassengers);
+  };
+
+  const resetPaxForm = () => {
+    setEditingPaxId(null);
+    setPaxFirstName("");
+    setPaxLastName("");
+    setPaxBirthDate("");
+    setPaxCpf("");
+    setPaxEmail("");
+    setPaxPhone("");
+    setPaxPassport("");
+  };
+
+  const handleSaveFrequentPassenger = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paxFirstName.trim() || !paxLastName.trim() || !paxBirthDate || !paxCpf.trim()) {
+      return;
+    }
+    setSavingPax(true);
+    setPaxSuccessMsg("");
+    try {
+      const targetEmail = user?.email || "donaldson.nunes@gmail.com";
+      const res = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SAVE_FREQUENT_PASSENGER",
+          id: editingPaxId || undefined,
+          userEmail: targetEmail,
+          firstName: paxFirstName,
+          lastName: paxLastName,
+          birthDate: paxBirthDate,
+          cpf: paxCpf,
+          email: paxEmail,
+          phone: paxPhone,
+          passport: paxPassport,
+        }),
+      });
+      const data = await res.json();
+      if (data.frequentPassengers) {
+        setFrequentPassengers(data.frequentPassengers);
+        resetPaxForm();
+        setPaxSuccessMsg(
+          editingPaxId
+            ? "Dados do passageiro frequente atualizados com sucesso!"
+            : "Novo passageiro frequente salvo na sua conta!"
+        );
+        setTimeout(() => setPaxSuccessMsg(""), 3500);
+      }
+    } finally {
+      setSavingPax(false);
+    }
+  };
+
+  const handleEditPassenger = (pax: any) => {
+    setEditingPaxId(pax.id);
+    setPaxFirstName(pax.firstName || "");
+    setPaxLastName(pax.lastName || "");
+    setPaxBirthDate(pax.birthDate || "");
+    setPaxCpf(pax.cpf || "");
+    setPaxEmail(pax.email || "");
+    setPaxPhone(pax.phone || "");
+    setPaxPassport(pax.passport || "");
+  };
+
+  const handleDeletePassenger = async (passengerId: string) => {
+    const targetEmail = user?.email || "donaldson.nunes@gmail.com";
+    const res = await fetch("/api/account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "DELETE_FREQUENT_PASSENGER",
+        userEmail: targetEmail,
+        passengerId,
+      }),
+    });
+    const data = await res.json();
+    if (data.frequentPassengers) {
+      setFrequentPassengers(data.frequentPassengers);
+      if (editingPaxId === passengerId) resetPaxForm();
+    }
   };
 
   useEffect(() => {
@@ -654,6 +753,223 @@ export default function ContaPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* CADASTRO DE PASSAGEIROS FREQUENTES (Sem limites por conta) */}
+          <div className="rounded-2xl bg-white border border-gray-200 p-7 shadow-sm space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-[#172C3B] flex items-center gap-2">
+                  <Users className="w-5 h-5 text-[#BD9472]" />
+                  <span>Cadastro de Passageiros Frequentes (Sem Limites por Conta)</span>
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Deixe seus passageiros salvos para selecionar com 1 clique na hora da compra de passagens aéreas.
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-[#172C3B] text-[#BD9472] font-mono text-xs font-bold">
+                {frequentPassengers.length}{" "}
+                {frequentPassengers.length === 1
+                  ? "passageiro cadastrado"
+                  : "passageiros cadastrados"}
+              </span>
+            </div>
+
+            {/* Formulário de Adição / Edição de Passageiro Frequente */}
+            <form
+              onSubmit={handleSaveFrequentPassenger}
+              className="p-4 sm:p-5 rounded-xl bg-[#FAF8F5] border border-[#BD9472]/35 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-extrabold text-[#172C3B] uppercase tracking-wider flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-[#BD9472]" />
+                  <span>
+                    {editingPaxId
+                      ? "Editando Passageiro Frequente"
+                      : "Adicionar Novo Passageiro Frequente"}
+                  </span>
+                </div>
+                {editingPaxId && (
+                  <button
+                    type="button"
+                    onClick={resetPaxForm}
+                    className="text-xs font-bold text-gray-500 hover:text-[#172C3B]"
+                  >
+                    Cancelar Edição
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                    Nome *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={paxFirstName}
+                    onChange={(e) => setPaxFirstName(e.target.value)}
+                    placeholder="Ex: Donaldson"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                    Sobrenome *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={paxLastName}
+                    onChange={(e) => setPaxLastName(e.target.value)}
+                    placeholder="Ex: Nunes"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                    Data de Nascimento *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={paxBirthDate}
+                    onChange={(e) => setPaxBirthDate(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-[#09090B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                    CPF *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={paxCpf}
+                    onChange={(e) => setPaxCpf(e.target.value)}
+                    placeholder="000.000.000-00"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-[#09090B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    E-mail <span className="font-normal text-gray-400">(opcional)</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={paxEmail}
+                    onChange={(e) => setPaxEmail(e.target.value)}
+                    placeholder="passageiro@email.com"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    Celular <span className="font-normal text-gray-400">(opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={paxPhone}
+                    onChange={(e) => setPaxPhone(e.target.value)}
+                    placeholder="(11) 99999-9999"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    Passaporte <span className="font-normal text-gray-400">(opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={paxPassport}
+                    onChange={(e) => setPaxPassport(e.target.value.toUpperCase())}
+                    placeholder="Ex: FP123456"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-[#09090B]"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={savingPax}
+                    className="w-full py-2 px-4 rounded-xl bg-[#172C3B] text-[#E8E2D9] font-extrabold text-xs hover:bg-[#BD9472] hover:text-[#0E1B24] transition shadow-xs"
+                  >
+                    {savingPax
+                      ? "Salvando..."
+                      : editingPaxId
+                      ? "Atualizar Passageiro"
+                      : "+ Salvar Passageiro"}
+                  </button>
+                </div>
+              </div>
+
+              {paxSuccessMsg && (
+                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{paxSuccessMsg}</span>
+                </div>
+              )}
+            </form>
+
+            {/* Lista de Passageiros Frequentes Salvos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {frequentPassengers.map((pax) => (
+                <div
+                  key={pax.id}
+                  className="p-4 rounded-xl bg-[#FAF8F5] border border-gray-200 flex items-start justify-between gap-3 hover:border-[#BD9472] transition"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="text-sm font-extrabold text-[#172C3B] truncate">
+                      {pax.firstName} {pax.lastName}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-gray-600">
+                      <span className="px-2 py-0.5 rounded bg-white border border-gray-200 font-bold text-[#09090B]">
+                        CPF: {pax.cpf}
+                      </span>
+                      <span>Nasc: {pax.birthDate}</span>
+                      {pax.passport && (
+                        <span className="px-2 py-0.5 rounded bg-[#172C3B]/10 text-[#172C3B] font-bold">
+                          Passaporte: {pax.passport}
+                        </span>
+                      )}
+                    </div>
+                    {(pax.email || pax.phone) && (
+                      <div className="text-[11px] text-gray-500 truncate">
+                        {pax.email ? `${pax.email}` : ""}
+                        {pax.email && pax.phone ? " • " : ""}
+                        {pax.phone ? `${pax.phone}` : ""}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleEditPassenger(pax)}
+                      className="p-2 rounded-lg bg-white border border-gray-200 text-[#172C3B] hover:border-[#172C3B] transition"
+                      title="Editar passageiro"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePassenger(pax.id)}
+                      className="p-2 rounded-lg bg-white border border-gray-200 text-red-600 hover:bg-red-50 hover:border-red-200 transition"
+                      title="Remover passageiro"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

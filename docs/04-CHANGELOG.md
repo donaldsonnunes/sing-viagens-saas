@@ -4,6 +4,31 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.9.0] — 2026-11-15
+### Adicionado (Cadastro Ilimitado de Passageiros Frequentes na Conta e Seletor / Cadastro na Hora no Checkout)
+- **Tabela `public.frequent_passengers` no Supabase PostgreSQL (`supabase/migrations/20261115054600_add_frequent_passengers_table.sql`, `src/lib/db.ts`, `src/app/api/account/route.ts`)**:
+  - Criada a estrutura de persistência ilimitada por conta (`user_email`) armazenando **Nome** (`first_name` — obrigatório), **Sobrenome** (`last_name` — obrigatório), **Data de Nascimento** (`birth_date` — obrigatório), **CPF** (`cpf` — obrigatório), **E-mail** (`email` — opcional), **Celular** (`phone` — opcional) e **Passaporte** (`passport` — opcional).
+- **Gestão Completa de Passageiros Frequentes em Minha Conta (`src/app/conta/page.tsx`)**:
+  - Nova seção **"Cadastro de Passageiros Frequentes (Sem Limites por Conta)"** no painel do usuário permitindo visualizar, adicionar, editar e excluir passageiros salvos a qualquer momento.
+- **Seleção com 1 Clique ou Cadastro na Hora no Checkout (`src/app/checkout/page.tsx`, `src/components/TicketVoucherModal.tsx`)**:
+  - Em cada slot de passageiro (`Passageiro #1`, `Passageiro #2`, etc.), o cliente pode escolher um **Passageiro Frequente já cadastrado** (preenchendo automaticamente Nome, Sobrenome, Data de Nascimento, CPF, E-mail, Celular e Passaporte) ou escolher **"➕ Cadastrar novo passageiro na hora"**, salvando-o com 1 clique ou automaticamente ao emitir o bilhete.
+
+---
+
+## [2.8.0] — 2026-11-15
+### Adicionado (Gateway de Otimização de Custos APIVIAGENS, Cache Negativo e Indexação Mensal por Interseção)
+- **Gateway Inteligente APIVIAGENS (`src/lib/apiViagensService.ts`, `docs/06-OTIMIZACAO-APIVIAGENS-E-INDEXACAO-MENSAL.md`)**:
+  - Integração completa com `https://api.apiviagens.com.br` (`/v1/account`, `/v1/flights`, `/v1/airfares`, `/v1/airfares/book`, `/v1/airfares/booking/{locator}`) calibrada com os limites reais da conta (`credits_per_search: 25`, `max_concurrent: 5`).
+  - **Roteador Inteligente de Malha Aérea (`selectOptimalProvidersForRoute`)**: Bloqueia automaticamente chamadas para programas que não operam a rota pesquisada (ex.: bloqueia `tap`, `aadvantage` e `azulpelomundo` em voos domésticos brasileiros, economizando de 75 a 100 créditos por busca).
+  - **Cache Ativo de 50 Minutos + Coalescing + Cache Negativo de 15 Minutos**: Preserva o `offer_id` dentro da validade de ~1h para reserva gratuita em `/v1/airfares/book`, desduplica requisições concorrentes e memoriza por 15 minutos provedores que retornaram `"Sem resultado"` / `"timeout"` (custo zero na API, mas poupando 15s de espera e slots de concorrência).
+  - **Parser Real Calibrado (`normalizeLiveApiViagensToOffers`)**: Desempacota `payload.providers[provider].list_flights.departure`, horários ISO `main_path`, trechos `complete_path` (`LA3378`), `duration` e `raw_pricing` (`miles` + `tax_amount`).
+- **Estrutura de Dados de Inventário Atômico & Indexação por Interseção Mensal (`supabase/migrations/20261115012000_flight_inventory_intersection_index.sql`)**:
+  - Criadas as tabelas `public.flight_leg_inventory` (com índices B-Tree compostos por rota/data/mês e índice GIN em `path_airports` para conexões) e `public.monthly_fare_calendar` (armazenando os 30/31 dias do mês `YYYY-MM` para cada par `Origem -> Destino`), além da função SQL `public.query_flight_intersection`.
+- **Painel Visual de Consumo e Faixa de Datas Pré-Busca na UI (`src/components/FlightSearchExperience.tsx`, `src/app/api/flights/search/route.ts`, `src/app/api/apiviagens/book/route.ts`, `src/app/api/apiviagens/account/route.ts`)**:
+  - Exibe na tela de pesquisa o status do Cache/Gateway, os programas consultados vs. poupados, seletor de Modo de Consumo (`1 Créd. / Smart / Completo`) e calendário interativo de pré-busca.
+
+---
+
 ## [2.7.0] — 2026-11-15
 ### Adicionado (4 Módulos Operacionais do Portal Geral: Passageiros ANAC no Checkout, Voucher PDF, Vitrine de Shows no Admin e Central de Alertas/Leads)
 - **1. Checkout Completo com Dados Individuais de Passageiros (`src/app/checkout/page.tsx`, `src/app/api/account/route.ts`)**:

@@ -39,8 +39,29 @@ export interface SearchHistoryItem {
 export interface PassengerDetailItem {
   typeLabel: string; // Ex: "Adulto 1", "Criança 1 (8 anos)"
   fullName: string;
+  firstName?: string;
+  lastName?: string;
   documentCpfOrPassport: string;
+  cpf?: string;
+  passport?: string;
+  email?: string;
+  phone?: string;
   birthDate: string;
+  frequentPassengerId?: string;
+  saveAsFrequentPassenger?: boolean;
+}
+
+export interface FrequentPassengerItem {
+  id: string;
+  userEmail: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  cpf: string;
+  email?: string;
+  phone?: string;
+  passport?: string;
+  createdAt: string;
 }
 
 export interface PurchaseOrderItem {
@@ -576,5 +597,115 @@ export async function logExternalApiTestToSupabase(params: {
     });
   } catch (err) {
     console.error("Failed to log external API call to Supabase:", err);
+  }
+}
+
+export const DEFAULT_FREQUENT_PASSENGERS: FrequentPassengerItem[] = [
+  {
+    id: "PAX-DON-1",
+    userEmail: "donaldson.nunes@gmail.com",
+    firstName: "Donaldson",
+    lastName: "Nunes",
+    birthDate: "1985-04-12",
+    cpf: "284.910.378-00",
+    email: "donaldson.nunes@gmail.com",
+    phone: "(11) 99999-0000",
+    passport: "FP892341",
+    createdAt: "2026-11-15T05:00:00.000Z",
+  },
+  {
+    id: "PAX-CLI-1",
+    userEmail: "cliente@singviagens.com.br",
+    firstName: "Mariana",
+    lastName: "Costa",
+    birthDate: "1992-08-19",
+    cpf: "391.482.108-45",
+    email: "cliente@singviagens.com.br",
+    phone: "(11) 98877-6655",
+    passport: "",
+    createdAt: "2026-11-15T05:00:00.000Z",
+  },
+];
+
+export async function fetchFrequentPassengersFromSupabase(
+  userEmail?: string
+): Promise<FrequentPassengerItem[]> {
+  try {
+    const queryUrl = userEmail
+      ? `${SUPABASE_URL}/rest/v1/frequent_passengers?select=*&order=created_at.desc`
+      : `${SUPABASE_URL}/rest/v1/frequent_passengers?select=*&order=created_at.desc`;
+    const res = await fetch(queryUrl, {
+      headers: supabaseHeaders(),
+      cache: "no-store",
+    });
+    if (!res.ok) return DEFAULT_FREQUENT_PASSENGERS;
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return DEFAULT_FREQUENT_PASSENGERS;
+    const mapped: FrequentPassengerItem[] = rows.map((r: any) => ({
+      id: r.id,
+      userEmail: r.user_email,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      birthDate: r.birth_date,
+      cpf: r.cpf,
+      email: r.email || "",
+      phone: r.phone || "",
+      passport: r.passport || "",
+      createdAt: r.created_at,
+    }));
+    if (userEmail) {
+      return mapped.filter(
+        (p) => p.userEmail.trim().toLowerCase() === userEmail.trim().toLowerCase()
+      );
+    }
+    return mapped;
+  } catch (err) {
+    console.error("Failed to fetch frequent passengers from Supabase:", err);
+    return userEmail
+      ? DEFAULT_FREQUENT_PASSENGERS.filter(
+          (p) => p.userEmail.toLowerCase() === userEmail.toLowerCase()
+        )
+      : DEFAULT_FREQUENT_PASSENGERS;
+  }
+}
+
+export async function upsertFrequentPassengerToSupabase(
+  pax: FrequentPassengerItem
+): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/frequent_passengers?on_conflict=id`, {
+      method: "POST",
+      headers: supabaseHeaders({
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      }),
+      body: JSON.stringify({
+        id: pax.id,
+        user_email: pax.userEmail.trim().toLowerCase(),
+        first_name: pax.firstName.trim(),
+        last_name: pax.lastName.trim(),
+        birth_date: pax.birthDate.trim(),
+        cpf: pax.cpf.trim(),
+        email: (pax.email || "").trim(),
+        phone: (pax.phone || "").trim(),
+        passport: (pax.passport || "").trim(),
+        created_at: pax.createdAt || new Date().toISOString(),
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to upsert frequent passenger to Supabase:", err);
+  }
+}
+
+export async function deleteFrequentPassengerFromSupabase(id: string): Promise<void> {
+  try {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/frequent_passengers?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+        headers: supabaseHeaders({ Prefer: "return=minimal" }),
+      }
+    );
+  } catch (err) {
+    console.error("Failed to delete frequent passenger from Supabase:", err);
   }
 }

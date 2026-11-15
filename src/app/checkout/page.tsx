@@ -10,13 +10,23 @@ import {
   Sparkles,
   UserCheck,
   FileText,
+  Users,
+  UserPlus,
 } from "lucide-react";
 
 interface PassengerFormRow {
   typeLabel: string;
+  frequentPassengerId?: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  cpf: string;
+  email: string;
+  phone: string;
+  passport: string;
+  saveAsFrequentPassenger: boolean;
   fullName: string;
   documentCpfOrPassport: string;
-  birthDate: string;
 }
 
 export default function CheckoutPage() {
@@ -26,14 +36,29 @@ export default function CheckoutPage() {
   const [selectedData, setSelectedData] = useState<any>(null);
   const [customerName, setCustomerName] = useState("Donaldson Nunes");
   const [customerEmail, setCustomerEmail] = useState("donaldson.nunes@gmail.com");
-  const [customerPhone, setCustomerPhone] = useState("(11) 98888-7777");
-  const [payerCpf, setPayerCpf] = useState("123.456.789-00");
+  const [customerPhone, setCustomerPhone] = useState("(11) 99999-0000");
+  const [payerCpf, setPayerCpf] = useState("284.910.378-00");
+
+  const [frequentPassengers, setFrequentPassengers] = useState<any[]>([]);
+  const [savingInstantIdx, setSavingInstantIdx] = useState<number | null>(null);
+  const [instantSaveFeedback, setInstantSaveFeedback] = useState<
+    Record<number, string>
+  >({});
+
   const [passengersDetails, setPassengersDetails] = useState<PassengerFormRow[]>([
     {
       typeLabel: "Adulto 1 (Titular)",
+      frequentPassengerId: "PAX-DON-1",
+      firstName: "Donaldson",
+      lastName: "Nunes",
+      birthDate: "1985-04-12",
+      cpf: "284.910.378-00",
+      email: "donaldson.nunes@gmail.com",
+      phone: "(11) 99999-0000",
+      passport: "FP892341",
+      saveAsFrequentPassenger: true,
       fullName: "Donaldson Nunes",
-      documentCpfOrPassport: "123.456.789-00",
-      birthDate: "1988-05-14",
+      documentCpfOrPassport: "284.910.378-00",
     },
   ]);
 
@@ -42,11 +67,51 @@ export default function CheckoutPage() {
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
 
+  const loadFrequentPassengersForEmail = async (
+    targetEmail: string,
+    initialRows?: PassengerFormRow[]
+  ) => {
+    try {
+      const res = await fetch(
+        `/api/account?email=${encodeURIComponent(targetEmail)}`
+      );
+      const data = await res.json();
+      const list = Array.isArray(data.frequentPassengers)
+        ? data.frequentPassengers
+        : [];
+      setFrequentPassengers(list);
+
+      if (list.length > 0 && initialRows && initialRows.length > 0) {
+        const firstSaved = list[0];
+        const updatedRows = [...initialRows];
+        updatedRows[0] = {
+          ...updatedRows[0],
+          frequentPassengerId: firstSaved.id,
+          firstName: firstSaved.firstName || "",
+          lastName: firstSaved.lastName || "",
+          birthDate: firstSaved.birthDate || "1985-04-12",
+          cpf: firstSaved.cpf || "",
+          email: firstSaved.email || "",
+          phone: firstSaved.phone || "",
+          passport: firstSaved.passport || "",
+          saveAsFrequentPassenger: true,
+          fullName: `${firstSaved.firstName || ""} ${
+            firstSaved.lastName || ""
+          }`.trim(),
+          documentCpfOrPassport: firstSaved.cpf || firstSaved.passport || "",
+        };
+        setPassengersDetails(updatedRows);
+      }
+    } catch {
+      // fallback silencioso
+    }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem("sing_user");
-    let defaultName = "Cliente VIP Sing";
-    let defaultEmail = "cliente@singviagens.com.br";
-    let defaultPhone = "(11) 98888-7777";
+    let defaultName = "Donaldson Nunes";
+    let defaultEmail = "donaldson.nunes@gmail.com";
+    let defaultPhone = "(11) 99999-0000";
 
     if (savedUser) {
       try {
@@ -62,6 +127,27 @@ export default function CheckoutPage() {
       }
     }
 
+    const nameParts = defaultName.trim().split(/\s+/);
+    const defaultFirst = nameParts[0] || "Donaldson";
+    const defaultLast = nameParts.slice(1).join(" ") || "Nunes";
+
+    let computedRows: PassengerFormRow[] = [
+      {
+        typeLabel: "Adulto 1 (Titular)",
+        frequentPassengerId: "",
+        firstName: defaultFirst,
+        lastName: defaultLast,
+        birthDate: "1985-04-12",
+        cpf: "284.910.378-00",
+        email: defaultEmail,
+        phone: defaultPhone,
+        passport: "",
+        saveAsFrequentPassenger: true,
+        fullName: `${defaultFirst} ${defaultLast}`.trim(),
+        documentCpfOrPassport: "284.910.378-00",
+      },
+    ];
+
     const raw = localStorage.getItem("sing_selected_checkout");
     if (raw) {
       try {
@@ -76,10 +162,18 @@ export default function CheckoutPage() {
         const rows: PassengerFormRow[] = [];
         for (let i = 0; i < adultsCount; i++) {
           rows.push({
-            typeLabel: `Adulto ${i + 1}`,
-            fullName: i === 0 ? defaultName : "",
-            documentCpfOrPassport: i === 0 ? "123.456.789-00" : "",
-            birthDate: i === 0 ? "1988-05-14" : "1990-01-01",
+            typeLabel: i === 0 ? "Adulto 1 (Titular)" : `Adulto ${i + 1}`,
+            frequentPassengerId: "",
+            firstName: i === 0 ? defaultFirst : "",
+            lastName: i === 0 ? defaultLast : "",
+            birthDate: i === 0 ? "1985-04-12" : "1990-01-01",
+            cpf: i === 0 ? "284.910.378-00" : "",
+            email: i === 0 ? defaultEmail : "",
+            phone: i === 0 ? defaultPhone : "",
+            passport: "",
+            saveAsFrequentPassenger: true,
+            fullName: i === 0 ? `${defaultFirst} ${defaultLast}`.trim() : "",
+            documentCpfOrPassport: i === 0 ? "284.910.378-00" : "",
           });
         }
         childrenAges.forEach((age, idx) => {
@@ -88,27 +182,139 @@ export default function CheckoutPage() {
               age < 2
                 ? `Bebê ${idx + 1} (${age} ano)`
                 : `Criança ${idx + 1} (${age} anos)`,
+            frequentPassengerId: "",
+            firstName: "",
+            lastName: "",
+            birthDate: "2018-06-10",
+            cpf: "",
+            email: "",
+            phone: "",
+            passport: "",
+            saveAsFrequentPassenger: true,
             fullName: "",
             documentCpfOrPassport: "",
-            birthDate: "2018-06-10",
           });
         });
 
+        computedRows = rows;
         setPassengersDetails(rows);
       } catch {
         setSelectedData(null);
       }
     }
+
+    loadFrequentPassengersForEmail(defaultEmail, computedRows);
   }, []);
+
+  const handleSelectFrequentPassenger = (rowIdx: number, selectedId: string) => {
+    const copy = [...passengersDetails];
+    if (selectedId === "__NEW__") {
+      copy[rowIdx] = {
+        ...copy[rowIdx],
+        frequentPassengerId: "",
+        firstName: "",
+        lastName: "",
+        birthDate: "",
+        cpf: "",
+        email: "",
+        phone: "",
+        passport: "",
+        saveAsFrequentPassenger: true,
+        fullName: "",
+        documentCpfOrPassport: "",
+      };
+      setPassengersDetails(copy);
+      return;
+    }
+
+    const found = frequentPassengers.find((p) => p.id === selectedId);
+    if (found) {
+      copy[rowIdx] = {
+        ...copy[rowIdx],
+        frequentPassengerId: found.id,
+        firstName: found.firstName || "",
+        lastName: found.lastName || "",
+        birthDate: found.birthDate || "",
+        cpf: found.cpf || "",
+        email: found.email || "",
+        phone: found.phone || "",
+        passport: found.passport || "",
+        saveAsFrequentPassenger: true,
+        fullName: `${found.firstName || ""} ${found.lastName || ""}`.trim(),
+        documentCpfOrPassport: found.cpf || found.passport || "",
+      };
+      setPassengersDetails(copy);
+    }
+  };
 
   const updatePassengerField = (
     idx: number,
     field: keyof PassengerFormRow,
-    value: string
+    value: string | boolean
   ) => {
     const copy = [...passengersDetails];
-    copy[idx] = { ...copy[idx], [field]: value };
+    const updated = { ...copy[idx], [field]: value } as PassengerFormRow;
+    updated.fullName = `${updated.firstName || ""} ${updated.lastName || ""}`.trim();
+    updated.documentCpfOrPassport = updated.cpf || updated.passport || "";
+    copy[idx] = updated;
     setPassengersDetails(copy);
+  };
+
+  const handleInstantSaveFrequentPassenger = async (idx: number) => {
+    const pax = passengersDetails[idx];
+    if (
+      !pax.firstName.trim() ||
+      !pax.lastName.trim() ||
+      !pax.birthDate ||
+      !pax.cpf.trim()
+    ) {
+      setInstantSaveFeedback((prev) => ({
+        ...prev,
+        [idx]: "Preencha Nome, Sobrenome, Data de Nascimento e CPF para salvar.",
+      }));
+      return;
+    }
+
+    setSavingInstantIdx(idx);
+    try {
+      const res = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SAVE_FREQUENT_PASSENGER",
+          id: pax.frequentPassengerId || undefined,
+          userEmail: customerEmail,
+          firstName: pax.firstName,
+          lastName: pax.lastName,
+          birthDate: pax.birthDate,
+          cpf: pax.cpf,
+          email: pax.email,
+          phone: pax.phone,
+          passport: pax.passport,
+        }),
+      });
+      const data = await res.json();
+      if (data.frequentPassengers) {
+        setFrequentPassengers(data.frequentPassengers);
+      }
+      if (data.passenger?.id) {
+        const copy = [...passengersDetails];
+        copy[idx] = {
+          ...copy[idx],
+          frequentPassengerId: data.passenger.id,
+        };
+        setPassengersDetails(copy);
+      }
+      setInstantSaveFeedback((prev) => ({
+        ...prev,
+        [idx]: "Passageiro salvo nos seus Passageiros Frequentes!",
+      }));
+      setTimeout(() => {
+        setInstantSaveFeedback((prev) => ({ ...prev, [idx]: "" }));
+      }, 3500);
+    } finally {
+      setSavingInstantIdx(null);
+    }
   };
 
   const handleConfirmPurchase = async (e: React.FormEvent) => {
@@ -117,11 +323,18 @@ export default function CheckoutPage() {
     const adultsCount = selectedData?.searchParams?.adults || 1;
     const minorsCount = selectedData?.searchParams?.childrenAges?.length || 0;
 
+    const normalizedPassengers = passengersDetails.map((p) => ({
+      ...p,
+      fullName: `${p.firstName} ${p.lastName}`.trim(),
+      documentCpfOrPassport: p.cpf || p.passport,
+    }));
+
     const res = await fetch("/api/account", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "CREATE_ORDER",
+        offerId: offer?.id,
         userEmail: customerEmail,
         customerName,
         customerPhone,
@@ -139,7 +352,7 @@ export default function CheckoutPage() {
             ? `, ${minorsCount} ${minorsCount === 1 ? "Criança" : "Crianças"}`
             : ""
         }`,
-        passengersDetails,
+        passengersDetails: normalizedPassengers,
         singTotalPrice: offer?.pricingBreakdown?.singFinalSalePriceTotal || 1842.5,
         airlineDirectReferencePrice:
           offer?.airlineDirectComparison?.[0]?.directWebsitePriceTotal || 2190,
@@ -150,6 +363,9 @@ export default function CheckoutPage() {
       }),
     });
     const data = await res.json();
+    if (data.frequentPassengers) {
+      setFrequentPassengers(data.frequentPassengers);
+    }
     if (data.order) {
       setConfirmedOrder(data.order);
     }
@@ -161,7 +377,7 @@ export default function CheckoutPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#BD9472]">
             <Sparkles className="w-4 h-4" />
-            <span>Emissão Segura ANAC & Agendamento VIP</span>
+            <span>Emissão Segura ANAC & Passageiros Frequentes</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-extrabold text-white">
             Identificação dos Passageiros & Emissão de Passagens
@@ -202,7 +418,7 @@ export default function CheckoutPage() {
                 Passagem Emitida! Localizador Oficial: {confirmedOrder.pnr}
               </h2>
               <p className="text-sm text-gray-600 max-w-xl mx-auto">
-                Os dados de todos os passageiros foram registrados no banco de dados da Sing Viagens ({confirmedOrder.userEmail}). Você economizou{" "}
+                Os dados de todos os passageiros foram registrados no banco de dados da Sing Viagens ({confirmedOrder.userEmail}) e atualizados na sua lista de Passageiros Frequentes. Você economizou{" "}
                 <strong>
                   R$ {Number(confirmedOrder.savingsAmount).toLocaleString("pt-BR")}
                 </strong>{" "}
@@ -221,7 +437,7 @@ export default function CheckoutPage() {
                   href="/conta"
                   className="px-6 py-3 rounded-xl bg-[#172C3B] text-[#E8E2D9] font-bold text-xs sm:text-sm"
                 >
-                  Ir para Meu Dashboard e Compras
+                  Ir para Meu Dashboard e Passageiros Frequentes
                 </Link>
                 <Link
                   href="/pesquisa"
@@ -235,73 +451,116 @@ export default function CheckoutPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-7 rounded-2xl bg-white border border-gray-200 p-7 space-y-6 shadow-xs">
                 <form onSubmit={handleConfirmPurchase} className="space-y-6">
-                  {/* Seção 1: Dados de Cada Passageiro (Nome, CPF/Passaporte, Nascimento) */}
+                  {/* Seção 1: Seleção ou Cadastro na Hora de Cada Passageiro */}
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
-                      <UserCheck className="w-5 h-5 text-[#BD9472]" />
-                      <div>
-                        <h2 className="text-lg font-extrabold text-[#172C3B]">
-                          1. Dados dos Passageiros para Emissão do Bilhete
-                        </h2>
-                        <p className="text-xs text-gray-500">
-                          Preencha exatamente como consta no documento oficial de embarque (RG, CPF ou Passaporte).
-                        </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="w-5 h-5 text-[#BD9472]" />
+                        <div>
+                          <h2 className="text-lg font-extrabold text-[#172C3B]">
+                            1. Dados dos Passageiros para Emissão do Bilhete
+                          </h2>
+                          <p className="text-xs text-gray-500">
+                            Selecione um passageiro frequente cadastrado ou cadastre um novo na hora (sem limites por conta).
+                          </p>
+                        </div>
                       </div>
+                      <Link
+                        href="/conta"
+                        className="text-xs font-bold text-[#172C3B] hover:text-[#BD9472] underline"
+                      >
+                        Gerenciar todos ({frequentPassengers.length})
+                      </Link>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       {passengersDetails.map((pax, idx) => (
                         <div
                           key={idx}
-                          className="p-4 rounded-2xl bg-[#FAF8F5] border border-gray-200 space-y-3"
+                          className="p-4 sm:p-5 rounded-2xl bg-[#FAF8F5] border border-gray-200 space-y-4"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="px-2.5 py-0.5 rounded-lg bg-[#172C3B] text-[#BD9472] font-mono text-xs font-bold">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="px-2.5 py-1 rounded-lg bg-[#172C3B] text-[#BD9472] font-mono text-xs font-bold">
                               Passageiro #{idx + 1} • {pax.typeLabel}
                             </span>
-                            <span className="text-[11px] text-gray-400">
-                              Obrigatório ANAC
-                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSelectFrequentPassenger(idx, "__NEW__")
+                              }
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-[#172C3B]/30 text-[#172C3B] hover:bg-[#172C3B] hover:text-white text-xs font-bold transition"
+                            >
+                              <UserPlus className="w-3.5 h-3.5 text-[#BD9472]" />
+                              <span>+ Cadastrar Novo na Hora</span>
+                            </button>
                           </div>
 
+                          {/* Seletor de Passageiro Frequente Cadastrado vs Cadastrar na Hora */}
+                          <div className="p-3 rounded-xl bg-white border border-[#BD9472]/50 space-y-1.5">
+                            <label className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#172C3B] uppercase tracking-wider">
+                              <Users className="w-3.5 h-3.5 text-[#BD9472]" />
+                              <span>
+                                Selecionar Passageiro Cadastrado ou Cadastrar na Hora:
+                              </span>
+                            </label>
+                            <select
+                              value={pax.frequentPassengerId || "__NEW__"}
+                              onChange={(e) =>
+                                handleSelectFrequentPassenger(idx, e.target.value)
+                              }
+                              className="w-full rounded-xl border border-gray-300 bg-[#FAF8F5] px-3 py-2 text-xs font-bold text-[#09090B]"
+                            >
+                              <option value="__NEW__">
+                                ➕ Cadastrar novo passageiro na hora (preencher campos abaixo)
+                              </option>
+                              {frequentPassengers.map((fp) => (
+                                <option key={fp.id} value={fp.id}>
+                                  👤 {fp.firstName} {fp.lastName} — CPF: {fp.cpf} • Nasc:{" "}
+                                  {fp.birthDate}
+                                  {fp.passport ? ` • Passaporte: ${fp.passport}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Campos Obrigatórios e Opcionais do Passageiro */}
                           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                            <div className="sm:col-span-6">
+                            <div className="sm:col-span-4">
                               <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
-                                Nome Completo (Igual ao Documento)
+                                Nome *
                               </label>
                               <input
                                 type="text"
                                 required
-                                value={pax.fullName}
+                                value={pax.firstName}
                                 onChange={(e) =>
-                                  updatePassengerField(idx, "fullName", e.target.value)
+                                  updatePassengerField(idx, "firstName", e.target.value)
                                 }
-                                placeholder="Nome e Sobrenome completo"
+                                placeholder="Ex: Donaldson"
                                 className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
                               />
                             </div>
-                            <div className="sm:col-span-3">
+
+                            <div className="sm:col-span-4">
                               <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
-                                CPF ou Passaporte
+                                Sobrenome *
                               </label>
                               <input
                                 type="text"
                                 required
-                                value={pax.documentCpfOrPassport}
+                                value={pax.lastName}
                                 onChange={(e) =>
-                                  updatePassengerField(
-                                    idx,
-                                    "documentCpfOrPassport",
-                                    e.target.value
-                                  )
+                                  updatePassengerField(idx, "lastName", e.target.value)
                                 }
-                                placeholder="000.000.000-00"
-                                className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 font-mono text-xs text-[#09090B]"
+                                placeholder="Ex: Nunes"
+                                className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
                               />
                             </div>
-                            <div className="sm:col-span-3">
+
+                            <div className="sm:col-span-4">
                               <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
-                                Data de Nasc.
+                                Data de Nascimento *
                               </label>
                               <input
                                 type="date"
@@ -313,6 +572,121 @@ export default function CheckoutPage() {
                                 className="w-full rounded-xl bg-white border border-gray-300 px-2.5 py-2 font-mono text-xs text-[#09090B]"
                               />
                             </div>
+
+                            <div className="sm:col-span-4">
+                              <label className="block text-[11px] font-bold text-[#172C3B] mb-1">
+                                CPF *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={pax.cpf}
+                                onChange={(e) =>
+                                  updatePassengerField(idx, "cpf", e.target.value)
+                                }
+                                placeholder="000.000.000-00"
+                                className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 font-mono text-xs text-[#09090B]"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-4">
+                              <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                                E-mail{" "}
+                                <span className="font-normal text-gray-400">
+                                  (opcional)
+                                </span>
+                              </label>
+                              <input
+                                type="email"
+                                value={pax.email}
+                                onChange={(e) =>
+                                  updatePassengerField(idx, "email", e.target.value)
+                                }
+                                placeholder="passageiro@email.com"
+                                className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-4">
+                              <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                                Celular{" "}
+                                <span className="font-normal text-gray-400">
+                                  (opcional)
+                                </span>
+                              </label>
+                              <input
+                                type="text"
+                                value={pax.phone}
+                                onChange={(e) =>
+                                  updatePassengerField(idx, "phone", e.target.value)
+                                }
+                                placeholder="(11) 99999-9999"
+                                className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-6">
+                              <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                                Passaporte{" "}
+                                <span className="font-normal text-gray-400">
+                                  (opcional — voos internacionais)
+                                </span>
+                              </label>
+                              <input
+                                type="text"
+                                value={pax.passport}
+                                onChange={(e) =>
+                                  updatePassengerField(
+                                    idx,
+                                    "passport",
+                                    e.target.value.toUpperCase()
+                                  )
+                                }
+                                placeholder="Ex: FP123456"
+                                className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 font-mono text-xs text-[#09090B]"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-6 flex items-end">
+                              <button
+                                type="button"
+                                disabled={savingInstantIdx === idx}
+                                onClick={() => handleInstantSaveFrequentPassenger(idx)}
+                                className="w-full py-2 px-3 rounded-xl bg-[#172C3B] text-[#E8E2D9] font-bold text-xs hover:bg-[#BD9472] hover:text-[#0E1B24] transition"
+                              >
+                                {savingInstantIdx === idx
+                                  ? "Salvando..."
+                                  : pax.frequentPassengerId
+                                  ? "Atualizar nos Passageiros Frequentes"
+                                  : "Salvar nos Passageiros Frequentes Agora"}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                            <label className="inline-flex items-center gap-2 text-xs text-[#172C3B] font-semibold cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={pax.saveAsFrequentPassenger}
+                                onChange={(e) =>
+                                  updatePassengerField(
+                                    idx,
+                                    "saveAsFrequentPassenger",
+                                    e.target.checked
+                                  )
+                                }
+                                className="rounded border-gray-300 text-[#172C3B]"
+                              />
+                              <span>
+                                Salvar/atualizar automaticamente na minha lista de Passageiros Frequentes ao emitir
+                              </span>
+                            </label>
+
+                            {instantSaveFeedback[idx] && (
+                              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                                {instantSaveFeedback[idx]}
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}

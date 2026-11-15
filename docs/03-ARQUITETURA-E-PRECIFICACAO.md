@@ -17,7 +17,8 @@
     - `search_history`: Histórico de pesquisas de passagens aéreas em tempo real.
     - `orders`: Pedidos e emissões geradas no checkout (`PNR`).
     - `external_api_logs`: Auditoria e gravação de payloads, status HTTP e latência (`ms`) para avaliação e testes de APIs externas de voos e milhas.
-  - Camada de repositório híbrida (`src/lib/db.ts`) integrada via REST ao Supabase com fallback local resiliente.
+    - `flight_leg_inventory` & `monthly_fare_calendar` (`supabase/migrations/20261115012000_flight_inventory_intersection_index.sql`): Inventário atômico de trechos direcionais (com índice GIN de conexões) e matriz mensal de 30/31 dias para busca rápida por interseção e redução de custos na APIVIAGENS (ver detalhes completos em `docs/06-OTIMIZACAO-APIVIAGENS-E-INDEXACAO-MENSAL.md`).
+  - Camada de repositório híbrida (`src/lib/db.ts` e `src/lib/apiViagensService.ts`) integrada via REST ao Supabase com fallback local resiliente.
 
 ---
 

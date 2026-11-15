@@ -108,5 +108,6 @@ Para cada voo retornado pela pesquisa, a interface apresenta duas visões integr
   - **Login e Cadastro por E-mail e Senha**: Abas dedicadas para entrar ou criar nova conta com nome, WhatsApp, e-mail e senha.
   - **Administrador Master Oficial**: O e-mail **`donaldson.nunes@gmail.com`** está configurado no banco PostgreSQL do Supabase (com *trigger* de proteção `trg_enforce_super_admin_role`) como **Administrador Master (`ADMIN`)**, liberando automaticamente o botão **Admin** na barra superior e o acesso ao painel `/admin`.
 - **Dashboard do Viajante (`/conta`)**:
+  - **Cadastro de Passageiros Frequentes (Sem Limites por Conta)**: Permite cadastrar, editar e remover quantos passageiros desejar com os dados oficiais de emissão aérea: **Nome\***, **Sobrenome\***, **Data de Nascimento\***, **CPF\***, **E-mail (opcional)**, **Celular (opcional)** e **Passaporte (opcional)**. No `/checkout`, cada assento permite selecionar um passageiro já cadastrado com 1 clique ou cadastrar um novo na hora (salvando automaticamente na conta).
   - **Histórico de Pesquisas Recentes**: Salva automaticamente origem, destino, datas, passageiros (incluindo idades dos menores) e menor preço encontrado, com botão **"Repetir Busca"**.
   - **Histórico de Compras e Reservas**: Lista de pedidos realizados no checkout, código localizador (PNR), status do pedido e recibo detalhado.
