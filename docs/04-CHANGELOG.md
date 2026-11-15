@@ -4,6 +4,16 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.5.0] — 2026-11-15
+### Adicionado (Login e Cadastro com Google, ID Apple e Administrador Master `donaldson.nunes@gmail.com`)
+- **Login e Cadastro com Google, ID Apple e E-mail/Senha (`src/app/conta/page.tsx`, `src/app/login/page.tsx`, `src/app/api/account/route.ts`)**:
+  - Implementados os fluxos de **"Continuar com Google"**, **"Continuar com ID Apple"** e cadastro/login por e-mail e senha integrados ao banco `public.users` e Supabase Auth (`lbbjgxvbjbsoaglsccun`).
+- **Permissão de Administrador Master para `donaldson.nunes@gmail.com` (`supabase/migrations/20261115000200_add_oauth_and_admin_donaldson.sql`, `src/lib/db.ts`, `src/components/Navbar.tsx`)**:
+  - O e-mail **`donaldson.nunes@gmail.com`** foi cadastrado e protegido via *trigger* no PostgreSQL do Supabase com a role **`ADMIN`**.
+  - O botão **Admin** na barra de navegação superior agora fica visível exclusivamente quando logado como Administrador (`donaldson.nunes@gmail.com`), ocultando-o para visitantes comuns.
+
+---
+
 ## [2.4.4] — 2026-11-14
 ### Corrigido (Alinhamento e Contenção da Barra de Navegação Superior)
 - **Ajuste de Espaçamento e Remoção de Botão Duplicado na Navbar (`src/components/Navbar.tsx`)**:

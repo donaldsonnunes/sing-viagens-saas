@@ -92,7 +92,7 @@ export default function AdminPricingPage() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-widest text-[#BD9472]">
               <SlidersHorizontal className="w-4 h-4" />
-              <span>PAINEL ADMIN SAAS • CUSTO DE MILHEIRO & MARGEM SOBRE SPREAD</span>
+              <span>ADMINISTRADOR MASTER: DONALDSON.NUNES@GMAIL.COM</span>
             </div>
             <h1 className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
               Parametrização de Milheiro por Cia e Margem de Lucro

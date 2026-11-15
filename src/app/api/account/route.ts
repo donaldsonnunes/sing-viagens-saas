@@ -3,6 +3,9 @@ import {
   fetchDatabaseFromSupabase,
   insertOrderToSupabase,
   insertUserToSupabase,
+  isSuperAdminEmail,
+  SUPABASE_KEY,
+  SUPABASE_URL,
   writeDb,
 } from "@/lib/db";
 
@@ -16,12 +19,20 @@ export async function GET(request: Request) {
     db.users[1] ||
     db.users[0];
 
-  const searchHistory = db.searchHistory.filter(
-    (s) => s.userEmail.toLowerCase() === user.email.toLowerCase() || s.userId === user.id
-  );
-  const orders = db.orders.filter(
-    (o) => o.userEmail.toLowerCase() === user.email.toLowerCase() || o.userId === user.id
-  );
+  const isAdmin = user.role === "ADMIN" || isSuperAdminEmail(user.email);
+
+  const searchHistory = isAdmin
+    ? db.searchHistory
+    : db.searchHistory.filter(
+        (s) =>
+          s.userEmail.toLowerCase() === user.email.toLowerCase() || s.userId === user.id
+      );
+  const orders = isAdmin
+    ? db.orders
+    : db.orders.filter(
+        (o) =>
+          o.userEmail.toLowerCase() === user.email.toLowerCase() || o.userId === user.id
+      );
 
   return NextResponse.json({
     user: {
@@ -29,7 +40,9 @@ export async function GET(request: Request) {
       name: user.name,
       email: user.email,
       phone: user.phone,
-      role: user.role,
+      role: isAdmin ? "ADMIN" : "CUSTOMER",
+      authProvider: user.authProvider || "EMAIL",
+      avatarUrl: user.avatarUrl,
     },
     searchHistory: searchHistory.length > 0 ? searchHistory : db.searchHistory.slice(0, 8),
     orders: orders.length > 0 ? orders : db.orders,
@@ -41,49 +54,81 @@ export async function POST(request: Request) {
     const body = await request.json();
     const db = await fetchDatabaseFromSupabase();
 
+    // 1. Login por E-mail e Senha
     if (body.action === "LOGIN") {
+      const normalizedEmail = (body.email || "").trim().toLowerCase();
       const user = db.users.find(
         (u) =>
-          u.email.toLowerCase() === (body.email || "").toLowerCase() &&
-          u.passwordHash === body.password
+          u.email.toLowerCase() === normalizedEmail && u.passwordHash === body.password
       );
       if (!user) {
         return NextResponse.json(
           {
             error:
-              "Credenciais inválidas. Use cliente@singviagens.com.br / 123456 ou admin@singviagens.com.br / sing2026",
+              "E-mail ou senha inválidos. Verifique seus dados ou entre com Google / ID Apple.",
           },
           { status: 401 }
         );
       }
+      const role = isSuperAdminEmail(user.email) ? "ADMIN" : user.role;
       return NextResponse.json({
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
           phone: user.phone,
-          role: user.role,
+          role,
+          authProvider: user.authProvider || "EMAIL",
+          avatarUrl: user.avatarUrl,
         },
       });
     }
 
+    // 2. Cadastro de Nova Conta por E-mail e Senha
     if (body.action === "REGISTER") {
-      const existing = db.users.find(
-        (u) => u.email.toLowerCase() === (body.email || "").toLowerCase()
-      );
+      const normalizedEmail = (body.email || "").trim().toLowerCase();
+      if (!normalizedEmail) {
+        return NextResponse.json({ error: "Informe um e-mail válido." }, { status: 400 });
+      }
+
+      const existing = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+      const role = isSuperAdminEmail(normalizedEmail) ? "ADMIN" : "CUSTOMER";
+
       if (existing) {
+        // Se for o Administrador Master (donaldson.nunes@gmail.com), atualiza a senha/dados e autentica
+        if (isSuperAdminEmail(normalizedEmail)) {
+          existing.name = body.name || existing.name || "Donaldson Nunes";
+          existing.passwordHash = body.password || existing.passwordHash;
+          existing.phone = body.phone || existing.phone;
+          existing.role = "ADMIN";
+          await insertUserToSupabase(existing);
+          writeDb(db);
+          return NextResponse.json({
+            user: {
+              id: existing.id,
+              name: existing.name,
+              email: existing.email,
+              phone: existing.phone,
+              role: "ADMIN",
+              authProvider: existing.authProvider || "EMAIL",
+            },
+          });
+        }
+
         return NextResponse.json(
-          { error: "Este e-mail já está cadastrado na Sing Viagens." },
+          { error: "Este e-mail já está cadastrado. Use a aba Entrar (Login)." },
           { status: 400 }
         );
       }
+
       const newUser = {
         id: `usr-${Date.now()}`,
         name: body.name || "Viajante Sing",
-        email: body.email,
+        email: normalizedEmail,
         passwordHash: body.password || "123456",
         phone: body.phone || "(11) 99999-9999",
-        role: "CUSTOMER" as const,
+        role: role as "CUSTOMER" | "ADMIN",
+        authProvider: "EMAIL" as const,
         createdAt: new Date().toISOString(),
       };
       db.users.push(newUser);
@@ -96,10 +141,134 @@ export async function POST(request: Request) {
           email: newUser.email,
           phone: newUser.phone,
           role: newUser.role,
+          authProvider: newUser.authProvider,
         },
       });
     }
 
+    // 3. Login / Cadastro Integrado com Google ou ID Apple
+    if (body.action === "SOCIAL_AUTH") {
+      const provider: "GOOGLE" | "APPLE" =
+        body.provider === "APPLE" ? "APPLE" : "GOOGLE";
+      const normalizedEmail = (body.email || "").trim().toLowerCase();
+      if (!normalizedEmail) {
+        return NextResponse.json(
+          { error: "Informe o e-mail da sua conta Google ou ID Apple." },
+          { status: 400 }
+        );
+      }
+
+      const role: "ADMIN" | "CUSTOMER" = isSuperAdminEmail(normalizedEmail)
+        ? "ADMIN"
+        : "CUSTOMER";
+
+      const existing = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+      const userRecord = existing
+        ? {
+            ...existing,
+            name:
+              body.name ||
+              existing.name ||
+              (isSuperAdminEmail(normalizedEmail)
+                ? "Donaldson Nunes"
+                : normalizedEmail.split("@")[0]),
+            role,
+            authProvider: provider,
+          }
+        : {
+            id: isSuperAdminEmail(normalizedEmail)
+              ? "usr-donaldson-admin"
+              : `usr-${provider.toLowerCase()}-${Date.now()}`,
+            name:
+              body.name ||
+              (isSuperAdminEmail(normalizedEmail)
+                ? "Donaldson Nunes"
+                : normalizedEmail.split("@")[0]),
+            email: normalizedEmail,
+            passwordHash: "oauth_managed",
+            phone: body.phone || "(11) 99999-0000",
+            role,
+            authProvider: provider,
+            createdAt: new Date().toISOString(),
+          };
+
+      if (!existing) {
+        db.users.push(userRecord);
+      }
+      await insertUserToSupabase(userRecord);
+      writeDb(db);
+
+      return NextResponse.json({
+        user: {
+          id: userRecord.id,
+          name: userRecord.name,
+          email: userRecord.email,
+          phone: userRecord.phone,
+          role: userRecord.role,
+          authProvider: userRecord.authProvider,
+        },
+      });
+    }
+
+    // 4. Sincronização de Token OAuth Nativo do Supabase (#access_token)
+    if (body.action === "SUPABASE_TOKEN_SYNC" && body.accessToken) {
+      const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${body.accessToken}`,
+        },
+      });
+      if (!userRes.ok) {
+        return NextResponse.json(
+          { error: "Sessão OAuth expirada ou inválida." },
+          { status: 401 }
+        );
+      }
+      const supaUser = await userRes.json();
+      const email = (supaUser.email || "").toLowerCase();
+      const providerRaw = (supaUser.app_metadata?.provider || "google").toUpperCase();
+      const provider: "GOOGLE" | "APPLE" | "EMAIL" =
+        providerRaw === "APPLE"
+          ? "APPLE"
+          : providerRaw === "GOOGLE"
+          ? "GOOGLE"
+          : "EMAIL";
+      const role: "ADMIN" | "CUSTOMER" = isSuperAdminEmail(email)
+        ? "ADMIN"
+        : "CUSTOMER";
+      const name =
+        supaUser.user_metadata?.full_name ||
+        supaUser.user_metadata?.name ||
+        (isSuperAdminEmail(email) ? "Donaldson Nunes" : email.split("@")[0]);
+
+      const syncedUser = {
+        id: supaUser.id || `usr-${Date.now()}`,
+        name,
+        email,
+        passwordHash: "oauth_managed",
+        phone: supaUser.phone || "",
+        role,
+        authProvider: provider,
+        avatarUrl: supaUser.user_metadata?.avatar_url,
+        createdAt: supaUser.created_at || new Date().toISOString(),
+      };
+
+      await insertUserToSupabase(syncedUser);
+
+      return NextResponse.json({
+        user: {
+          id: syncedUser.id,
+          name: syncedUser.name,
+          email: syncedUser.email,
+          phone: syncedUser.phone,
+          role: syncedUser.role,
+          authProvider: syncedUser.authProvider,
+          avatarUrl: syncedUser.avatarUrl,
+        },
+      });
+    }
+
+    // 5. Criação de Pedido no Checkout
     if (body.action === "CREATE_ORDER") {
       const pnr = `SNG${Math.floor(100 + Math.random() * 900)}`;
       const newOrder = {

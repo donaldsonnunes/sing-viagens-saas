@@ -102,9 +102,11 @@ Para cada voo retornado pela pesquisa, a interface apresenta duas visões integr
 
 ---
 
-## 6. Área do Cliente: Login, Senha e Histórico (`/conta`)
-- **Autenticação (`/login` e `/cadastro`)**:
-  - Login por e-mail e senha (com sessão persistente).
+## 6. Área do Cliente e Administrador: Login Social (Google / Apple ID), Cadastro e Histórico (`/conta` e `/login`)
+- **Autenticação Integrada com Supabase (`/conta` e `/login`)**:
+  - **Login Social com 1 Clique**: Botões oficiais **"Continuar com Google"** e **"Continuar com ID Apple"**, além de sincronização de token OAuth do Supabase (`#access_token`).
+  - **Login e Cadastro por E-mail e Senha**: Abas dedicadas para entrar ou criar nova conta com nome, WhatsApp, e-mail e senha.
+  - **Administrador Master Oficial**: O e-mail **`donaldson.nunes@gmail.com`** está configurado no banco PostgreSQL do Supabase (com *trigger* de proteção `trg_enforce_super_admin_role`) como **Administrador Master (`ADMIN`)**, liberando automaticamente o botão **Admin** na barra superior e o acesso ao painel `/admin`.
 - **Dashboard do Viajante (`/conta`)**:
-  - **Histórico de Pesquisas Recentes**: Salva automaticamente origem, destino, datas, passageiros (incluindo idades dos menores) e menor preço encontrado, com botão **"Refazer Pesquisa com 1 Clique"**.
+  - **Histórico de Pesquisas Recentes**: Salva automaticamente origem, destino, datas, passageiros (incluindo idades dos menores) e menor preço encontrado, com botão **"Repetir Busca"**.
   - **Histórico de Compras e Reservas**: Lista de pedidos realizados no checkout, código localizador (PNR), status do pedido e recibo detalhado.

@@ -65,7 +65,19 @@ export interface UserAccount {
   passwordHash: string;
   phone: string;
   role: "CUSTOMER" | "ADMIN";
+  authProvider?: "EMAIL" | "GOOGLE" | "APPLE";
+  avatarUrl?: string;
   createdAt: string;
+}
+
+export const SUPER_ADMIN_EMAILS = [
+  "donaldson.nunes@gmail.com",
+  "admin@singviagens.com.br",
+];
+
+export function isSuperAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return SUPER_ADMIN_EMAILS.includes(email.trim().toLowerCase());
 }
 
 export interface DatabaseSchema {
@@ -113,12 +125,23 @@ export const DEFAULT_DB: DatabaseSchema = {
   },
   users: [
     {
+      id: "usr-donaldson-admin",
+      name: "Donaldson Nunes",
+      email: "donaldson.nunes@gmail.com",
+      passwordHash: "sing2026",
+      phone: "(11) 99999-0000",
+      role: "ADMIN",
+      authProvider: "GOOGLE",
+      createdAt: "2026-11-14T09:00:00.000Z",
+    },
+    {
       id: "usr-admin-1",
       name: "Diretoria Sing Viagens (Admin)",
       email: "admin@singviagens.com.br",
       passwordHash: "sing2026",
       phone: "(11) 99999-0000",
       role: "ADMIN",
+      authProvider: "EMAIL",
       createdAt: "2026-11-14T10:00:00.000Z",
     },
     {
@@ -128,6 +151,7 @@ export const DEFAULT_DB: DatabaseSchema = {
       passwordHash: "123456",
       phone: "(11) 98888-7777",
       role: "CUSTOMER",
+      authProvider: "EMAIL",
       createdAt: "2026-11-14T11:00:00.000Z",
     },
   ],
@@ -282,7 +306,10 @@ export async function fetchDatabaseFromSupabase(): Promise<DatabaseSchema> {
             email: u.email,
             passwordHash: u.password_hash,
             phone: u.phone || "",
-            role: u.role === "ADMIN" ? "ADMIN" : "CUSTOMER",
+            role:
+              u.role === "ADMIN" || isSuperAdminEmail(u.email) ? "ADMIN" : "CUSTOMER",
+            authProvider: u.auth_provider || "EMAIL",
+            avatarUrl: u.avatar_url || undefined,
             createdAt: u.created_at,
           }))
         : fallback.users;
@@ -390,16 +417,20 @@ export async function insertSearchHistoryToSupabase(
 
 export async function insertUserToSupabase(user: UserAccount): Promise<void> {
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/users?on_conflict=email`, {
       method: "POST",
-      headers: supabaseHeaders({ Prefer: "return=minimal" }),
+      headers: supabaseHeaders({
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      }),
       body: JSON.stringify({
         id: user.id,
         name: user.name,
         email: user.email,
         password_hash: user.passwordHash,
         phone: user.phone,
-        role: user.role,
+        role: isSuperAdminEmail(user.email) ? "ADMIN" : user.role,
+        auth_provider: user.authProvider || "EMAIL",
+        avatar_url: user.avatarUrl || null,
         created_at: user.createdAt,
       }),
     });

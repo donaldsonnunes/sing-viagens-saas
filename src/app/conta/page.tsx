@@ -4,29 +4,89 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  User,
-  Lock,
   History,
   ShoppingBag,
   RotateCcw,
-  Plane,
   CheckCircle2,
   LogOut,
   Sparkles,
+  ShieldCheck,
+  SlidersHorizontal,
+  Mail,
+  Lock,
+  User as UserIcon,
+  Phone,
+  ArrowRight,
+  X,
 } from "lucide-react";
+
+const SUPABASE_PROJECT_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lbbjgxvbjbsoaglsccun.supabase.co";
+
+function GoogleLogoSvg() {
+  return (
+    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
+      />
+    </svg>
+  );
+}
+
+function AppleLogoSvg() {
+  return (
+    <svg
+      className="w-4 h-4 shrink-0 fill-current"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+    </svg>
+  );
+}
 
 export default function ContaPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [authMode, setAuthMode] = useState<"LOGIN" | "REGISTER">("LOGIN");
-  const [email, setEmail] = useState("cliente@singviagens.com.br");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("donaldson.nunes@gmail.com");
+  const [password, setPassword] = useState("sing2026");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [authError, setAuthError] = useState("");
+  const [loadingAuth, setLoadingAuth] = useState(false);
+
+  // Modal de Login Social (Google / Apple ID)
+  const [socialModalProvider, setSocialModalProvider] = useState<
+    "GOOGLE" | "APPLE" | null
+  >(null);
+  const [socialEmail, setSocialEmail] = useState("donaldson.nunes@gmail.com");
+  const [socialName, setSocialName] = useState("Donaldson Nunes");
 
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+
+  const saveSessionAndNotify = (loggedUser: any) => {
+    localStorage.setItem("sing_user", JSON.stringify(loggedUser));
+    setUser(loggedUser);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sing-auth-change"));
+    }
+    loadAccountData(loggedUser.email);
+  };
 
   const loadAccountData = async (targetEmail: string) => {
     const res = await fetch(`/api/account?email=${encodeURIComponent(targetEmail)}`);
@@ -36,6 +96,31 @@ export default function ContaPage() {
   };
 
   useEffect(() => {
+    // 1. Verifica se retornou de um fluxo OAuth do Supabase (#access_token=...)
+    if (typeof window !== "undefined" && window.location.hash.includes("access_token=")) {
+      const params = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = params.get("access_token");
+      if (accessToken) {
+        fetch("/api/account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "SUPABASE_TOKEN_SYNC",
+            accessToken,
+          }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.user) {
+              saveSessionAndNotify(data.user);
+              window.history.replaceState(null, "", window.location.pathname);
+            }
+          });
+        return;
+      }
+    }
+
+    // 2. Verifica sessão salva localmente
     const saved = localStorage.getItem("sing_user");
     if (saved) {
       try {
@@ -46,38 +131,78 @@ export default function ContaPage() {
         setUser(null);
       }
     } else {
-      loadAccountData("cliente@singviagens.com.br");
+      loadAccountData("donaldson.nunes@gmail.com");
     }
   }, []);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    const res = await fetch("/api/account", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: authMode,
-        email,
-        password,
-        name,
-        phone,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok || data.error) {
-      setAuthError(data.error || "Falha na autenticação.");
-      return;
+    setLoadingAuth(true);
+    try {
+      const res = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: authMode,
+          email,
+          password,
+          name,
+          phone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setAuthError(data.error || "Falha na autenticação.");
+        return;
+      }
+      saveSessionAndNotify(data.user);
+    } finally {
+      setLoadingAuth(false);
     }
-    localStorage.setItem("sing_user", JSON.stringify(data.user));
-    setUser(data.user);
-    loadAccountData(data.user.email);
+  };
+
+  const handleSocialLoginConfirm = async (
+    provider: "GOOGLE" | "APPLE",
+    targetEmail: string,
+    targetName: string
+  ) => {
+    setAuthError("");
+    setLoadingAuth(true);
+    try {
+      const res = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SOCIAL_AUTH",
+          provider,
+          email: targetEmail,
+          name: targetName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setAuthError(data.error || "Não foi possível autenticar.");
+        return;
+      }
+      setSocialModalProvider(null);
+      saveSessionAndNotify(data.user);
+    } finally {
+      setLoadingAuth(false);
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem("sing_user");
     setUser(null);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sing-auth-change"));
+    }
   };
+
+  const isAdmin =
+    user?.role === "ADMIN" ||
+    user?.email?.toLowerCase() === "donaldson.nunes@gmail.com";
 
   return (
     <div className="bg-[#FAF8F5] min-h-screen pb-20">
@@ -86,61 +211,149 @@ export default function ContaPage() {
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#BD9472]">
               <Sparkles className="w-4 h-4" />
-              <span>Portal do Viajante Sing</span>
+              <span>Portal de Acesso Sing Viagens</span>
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white mt-1">
-              Login, Histórico de Pesquisas e Minhas Compras
+              Minha Conta, Login Social e Histórico de Viagens
             </h1>
           </div>
           {user && (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-xs font-bold text-white hover:bg-white/20 transition self-start"
-            >
-              <LogOut className="w-4 h-4 text-[#BD9472]" />
-              <span>Sair da Conta ({user.name})</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#BD9472] text-[#0E1B24] text-xs font-extrabold hover:bg-[#D4AF8E] transition shadow"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  <span>Painel do Administrador</span>
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-xs font-bold text-white hover:bg-white/20 transition"
+              >
+                <LogOut className="w-4 h-4 text-[#BD9472]" />
+                <span>Sair ({user.name.split(" ")[0]})</span>
+              </button>
+            </div>
           )}
         </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Coluna Esquerda: Card de Login / Status do Usuário */}
+        {/* Coluna Esquerda: Card de Login / Cadastro / Perfil */}
         <div className="lg:col-span-4">
           {user ? (
-            <div className="rounded-2xl bg-[#172C3B] text-[#E8E2D9] p-6 border border-[#BD9472]/40 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-[#BD9472] text-[#0E1B24] flex items-center justify-center font-black text-lg">
-                  {user.name.charAt(0)}
+            <div className="rounded-2xl bg-[#172C3B] text-[#E8E2D9] p-6 border border-[#BD9472]/40 space-y-5 shadow-lg">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-[#BD9472] text-[#0E1B24] flex items-center justify-center font-black text-xl shrink-0">
+                  {user.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <div className="text-xs text-[#BD9472] font-bold uppercase">
-                    Conta Conectada
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] text-[#BD9472] font-bold uppercase tracking-wider">
+                      {isAdmin ? "Administrador Master" : "Conta Verificada"}
+                    </span>
+                    {user.authProvider && (
+                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-mono text-white">
+                        via {user.authProvider}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-lg font-extrabold text-white">{user.name}</div>
-                  <div className="text-xs text-[#E8E2D9]/75">{user.email}</div>
+                  <div className="text-lg font-extrabold text-white truncate">
+                    {user.name}
+                  </div>
+                  <div className="text-xs text-[#E8E2D9]/75 truncate">
+                    {user.email}
+                  </div>
                 </div>
               </div>
+
+              {isAdmin && (
+                <div className="rounded-xl bg-[#BD9472]/15 border border-[#BD9472]/45 p-3.5 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#BD9472]">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Acesso de Administrador Ativo</span>
+                  </div>
+                  <p className="text-[11px] text-[#E8E2D9]/85 leading-relaxed">
+                    Seu e-mail (<strong>{user.email}</strong>) possui permissão total para gerenciar o valor do milheiro por companhia aérea e a margem de lucro.
+                  </p>
+                  <Link
+                    href="/admin"
+                    className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[#BD9472] text-[#0E1B24] font-extrabold text-xs hover:bg-[#D4AF8E] transition"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Abrir Painel Admin de Precificação</span>
+                  </Link>
+                </div>
+              )}
+
               <p className="text-xs text-[#E8E2D9]/80 leading-relaxed pt-2 border-t border-white/10">
-                Todas as suas pesquisas de passagens e cotações com menores de idade ficam salvas abaixo para você retomar com apenas 1 clique.
+                Suas pesquisas de passagens e emissões ficam salvas no Supabase em tempo real para você retomar com 1 clique.
               </p>
+
               <Link
                 href="/pesquisa"
-                className="w-full block text-center py-3 rounded-xl bg-[#BD9472] text-[#0E1B24] font-bold text-xs hover:bg-[#D4AF8E] transition"
+                className="w-full block text-center py-3 rounded-xl bg-white/10 text-white font-bold text-xs hover:bg-white/20 transition border border-white/15"
               >
-                Nova Pesquisa de Passagens
+                Buscar Passagens Aéreas
               </Link>
             </div>
           ) : (
-            <div className="rounded-2xl bg-white border border-gray-200 p-6 shadow-sm space-y-5">
+            <div className="rounded-2xl bg-white border border-gray-200 p-6 shadow-md space-y-5">
+              {/* Botões de Login Social: Google e Apple ID */}
+              <div className="space-y-2.5">
+                <div className="text-xs font-bold text-[#172C3B] uppercase tracking-wider">
+                  Acesso Rápido com 1 Clique
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSocialModalProvider("GOOGLE");
+                    setSocialEmail("donaldson.nunes@gmail.com");
+                    setSocialName("Donaldson Nunes");
+                  }}
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white border border-gray-300 hover:border-[#172C3B] hover:bg-gray-50 text-[#09090B] font-bold text-xs sm:text-sm transition shadow-2xs"
+                >
+                  <GoogleLogoSvg />
+                  <span>Continuar com Google</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSocialModalProvider("APPLE");
+                    setSocialEmail("donaldson.nunes@gmail.com");
+                    setSocialName("Donaldson Nunes");
+                  }}
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-[#09090B] hover:bg-[#172C3B] text-white font-bold text-xs sm:text-sm transition shadow-2xs"
+                >
+                  <AppleLogoSvg />
+                  <span>Continuar com ID Apple</span>
+                </button>
+              </div>
+
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-gray-200" />
+                <span className="flex-shrink mx-3 text-[11px] font-medium text-gray-400 uppercase">
+                  ou use seu e-mail
+                </span>
+                <div className="flex-grow border-t border-gray-200" />
+              </div>
+
+              {/* Abas Login / Criar Conta */}
               <div className="flex gap-2 p-1 rounded-xl bg-gray-100">
                 <button
                   type="button"
-                  onClick={() => setAuthMode("LOGIN")}
+                  onClick={() => {
+                    setAuthMode("LOGIN");
+                    setAuthError("");
+                  }}
                   className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${
                     authMode === "LOGIN"
-                      ? "bg-[#172C3B] text-white"
+                      ? "bg-[#172C3B] text-white shadow-xs"
                       : "text-gray-600"
                   }`}
                 >
@@ -148,10 +361,13 @@ export default function ContaPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAuthMode("REGISTER")}
+                  onClick={() => {
+                    setAuthMode("REGISTER");
+                    setAuthError("");
+                  }}
                   className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${
                     authMode === "REGISTER"
-                      ? "bg-[#172C3B] text-white"
+                      ? "bg-[#172C3B] text-white shadow-xs"
                       : "text-gray-600"
                   }`}
                 >
@@ -166,55 +382,67 @@ export default function ContaPage() {
                       <label className="block text-xs font-bold text-[#172C3B] mb-1">
                         Seu Nome Completo
                       </label>
-                      <input
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Ex: Rodrigo Almeida"
-                        className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                      />
+                      <div className="relative">
+                        <UserIcon className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Ex: Donaldson Nunes"
+                          className="w-full rounded-xl border border-gray-300 pl-9 pr-3 py-2 text-sm text-[#09090B]"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#172C3B] mb-1">
                         WhatsApp
                       </label>
-                      <input
-                        type="text"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="(11) 99999-9999"
-                        className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                      />
+                      <div className="relative">
+                        <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          required
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="(11) 99999-9999"
+                          className="w-full rounded-xl border border-gray-300 pl-9 pr-3 py-2 text-sm text-[#09090B]"
+                        />
+                      </div>
                     </div>
                   </>
                 )}
 
                 <div>
                   <label className="block text-xs font-bold text-[#172C3B] mb-1">
-                    E-mail de Acesso
+                    E-mail
                   </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                  />
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 pl-9 pr-3 py-2 text-sm text-[#09090B]"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-[#172C3B] mb-1">
                     Senha
                   </label>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                  />
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 pl-9 pr-3 py-2 text-sm text-[#09090B]"
+                    />
+                  </div>
                 </div>
 
                 {authError && (
@@ -225,17 +453,45 @@ export default function ContaPage() {
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-[#172C3B] text-[#E8E2D9] font-bold text-xs sm:text-sm hover:bg-[#BD9472] hover:text-[#0E1B24] transition"
+                  disabled={loadingAuth}
+                  className="w-full py-3 rounded-xl bg-[#172C3B] text-[#E8E2D9] font-bold text-xs sm:text-sm hover:bg-[#BD9472] hover:text-[#0E1B24] transition shadow-sm"
                 >
-                  {authMode === "LOGIN"
-                    ? "Acessar Meu Histórico e Compras"
-                    : "Cadastrar e Acessar Conta"}
+                  {loadingAuth
+                    ? "Autenticando..."
+                    : authMode === "LOGIN"
+                    ? "Entrar na Minha Conta"
+                    : "Criar Minha Conta"}
                 </button>
 
-                <div className="text-[11px] text-gray-500 bg-gray-50 p-2.5 rounded-lg border border-gray-200">
-                  <strong>Acesso Rápido Demo já preenchido:</strong>
-                  <br />
-                  Cliente: <code>cliente@singviagens.com.br</code> / Senha: <code>123456</code>
+                {/* Atalhos Rápidos de Teste (Admin Donaldson vs Cliente) */}
+                <div className="text-[11px] text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-1.5">
+                  <div className="font-bold text-[#172C3B]">
+                    Atalhos Rápidos de Acesso:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("LOGIN");
+                        setEmail("donaldson.nunes@gmail.com");
+                        setPassword("sing2026");
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-[#172C3B] text-[#BD9472] font-bold text-[10px] hover:opacity-90"
+                    >
+                      Admin: donaldson.nunes@gmail.com
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("LOGIN");
+                        setEmail("cliente@singviagens.com.br");
+                        setPassword("123456");
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-800 font-semibold text-[10px] hover:bg-gray-300"
+                    >
+                      Cliente Demo
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -244,12 +500,11 @@ export default function ContaPage() {
 
         {/* Coluna Direita: Histórico de Pesquisas Recentes + Histórico de Compras */}
         <div className="lg:col-span-8 space-y-8">
-          {/* Histórico de Pesquisas para Retornar com 1 Clique */}
           <div className="rounded-2xl bg-white border border-gray-200 p-7 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-extrabold text-[#172C3B] flex items-center gap-2">
                 <History className="w-5 h-5 text-[#BD9472]" />
-                <span>Histórico de Pesquisas Recentes (Retome com 1 Clique)</span>
+                <span>Histórico de Pesquisas de Passagens (Retome com 1 Clique)</span>
               </h2>
               <span className="text-xs text-gray-500">
                 {searchHistory.length} buscas salvas
@@ -273,11 +528,12 @@ export default function ContaPage() {
                       </span>
                     </div>
                     <div className="text-xs text-gray-600">
-                      Viajantes: {item.adults} Adulto(s)
+                      Viajantes: {item.adults}{" "}
+                      {item.adults === 1 ? "Adulto" : "Adultos"}
                       {item.childrenAges?.length > 0
-                        ? `, ${item.childrenAges.length} Menor(es) [Idades: ${item.childrenAges.join(
-                            ", "
-                          )} anos]`
+                        ? `, ${item.childrenAges.length} ${
+                            item.childrenAges.length === 1 ? "Criança" : "Crianças"
+                          }`
                         : ""}
                     </div>
                   </div>
@@ -289,7 +545,8 @@ export default function ContaPage() {
                         R$ {Number(item.lowestSingPrice).toLocaleString("pt-BR")}
                       </div>
                       <div className="text-[10px] text-gray-400 line-through">
-                        Cia: R$ {Number(item.lowestAirlineDirectPrice).toLocaleString("pt-BR")}
+                        Cia: R${" "}
+                        {Number(item.lowestAirlineDirectPrice).toLocaleString("pt-BR")}
                       </div>
                     </div>
 
@@ -311,7 +568,6 @@ export default function ContaPage() {
             </div>
           </div>
 
-          {/* Histórico de Compras e Reservas Emitidas */}
           <div className="rounded-2xl bg-white border border-gray-200 p-7 shadow-sm space-y-4">
             <h2 className="text-lg font-extrabold text-[#172C3B] flex items-center gap-2">
               <ShoppingBag className="w-5 h-5 text-[#BD9472]" />
@@ -348,7 +604,8 @@ export default function ContaPage() {
                       R$ {Number(ord.singTotalPrice).toLocaleString("pt-BR")}
                     </div>
                     <div className="text-[11px] text-emerald-300 font-semibold">
-                      Economia gerada: R$ {Number(ord.savingsAmount).toLocaleString("pt-BR")}
+                      Economia gerada: R${" "}
+                      {Number(ord.savingsAmount).toLocaleString("pt-BR")}
                     </div>
                   </div>
                 </div>
@@ -357,6 +614,137 @@ export default function ContaPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Autenticação Google / ID Apple */}
+      {socialModalProvider && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 space-y-5 animate-fade-up">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                {socialModalProvider === "GOOGLE" ? (
+                  <GoogleLogoSvg />
+                ) : (
+                  <AppleLogoSvg />
+                )}
+                <h3 className="text-base font-extrabold text-[#09090B]">
+                  {socialModalProvider === "GOOGLE"
+                    ? "Entrar ou Cadastrar com Google"
+                    : "Entrar ou Cadastrar com ID Apple"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSocialModalProvider(null)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Opção 1: Seleção Rápida da Conta Google/Apple */}
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-gray-500">
+                Escolha uma conta para prosseguir na Sing Viagens:
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleSocialLoginConfirm(
+                    socialModalProvider,
+                    "donaldson.nunes@gmail.com",
+                    "Donaldson Nunes"
+                  )
+                }
+                className="w-full p-3 rounded-xl border border-[#BD9472] bg-[#FAF8F5] hover:bg-[#E8E2D9]/50 transition flex items-center justify-between text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#172C3B] text-[#BD9472] font-bold flex items-center justify-center text-sm">
+                    D
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-[#09090B] flex items-center gap-1.5">
+                      <span>Donaldson Nunes</span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#172C3B] text-[#BD9472] text-[10px]">
+                        ADMIN
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-500">
+                      donaldson.nunes@gmail.com
+                    </div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-[#172C3B]" />
+              </button>
+            </div>
+
+            {/* Opção 2: Digitar outra conta Google ou Apple ID */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSocialLoginConfirm(
+                  socialModalProvider,
+                  socialEmail,
+                  socialName
+                );
+              }}
+              className="space-y-3 pt-2 border-t border-gray-100"
+            >
+              <div className="text-xs font-semibold text-gray-500">
+                Ou informe seu e-mail{" "}
+                {socialModalProvider === "GOOGLE" ? "Google" : "ID Apple"}:
+              </div>
+              <div>
+                <input
+                  type="text"
+                  required
+                  value={socialName}
+                  onChange={(e) => setSocialName(e.target.value)}
+                  placeholder="Seu nome"
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B] mb-2"
+                />
+                <input
+                  type="email"
+                  required
+                  value={socialEmail}
+                  onChange={(e) => setSocialEmail(e.target.value)}
+                  placeholder={
+                    socialModalProvider === "GOOGLE"
+                      ? "seuemail@gmail.com"
+                      : "seuemail@icloud.com"
+                  }
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={loadingAuth}
+                  className="flex-1 py-2.5 rounded-xl bg-[#172C3B] text-white font-bold text-xs hover:bg-[#09090B] transition"
+                >
+                  {loadingAuth
+                    ? "Conectando..."
+                    : `Continuar com ${
+                        socialModalProvider === "GOOGLE" ? "Google" : "ID Apple"
+                      }`}
+                </button>
+                <a
+                  href={`${SUPABASE_PROJECT_URL}/auth/v1/authorize?provider=${socialModalProvider.toLowerCase()}&redirect_to=${
+                    typeof window !== "undefined"
+                      ? encodeURIComponent(`${window.location.origin}/conta`)
+                      : ""
+                  }`}
+                  className="px-3 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:text-[#09090B] hover:border-gray-300 text-[11px] font-semibold flex items-center"
+                  title="Redirecionamento OAuth Direto Supabase"
+                >
+                  OAuth Direto
+                </a>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

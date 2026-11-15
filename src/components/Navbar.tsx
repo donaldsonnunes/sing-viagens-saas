@@ -117,17 +117,33 @@ export function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("sing_user");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setUserName(parsed.name);
-      } catch {
+    const syncUser = () => {
+      const saved = localStorage.getItem("sing_user");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setUserName(parsed.name || null);
+          setIsAdmin(
+            parsed.role === "ADMIN" ||
+              parsed.email?.toLowerCase() === "donaldson.nunes@gmail.com" ||
+              parsed.email?.toLowerCase() === "admin@singviagens.com.br"
+          );
+        } catch {
+          setUserName(null);
+          setIsAdmin(false);
+        }
+      } else {
         setUserName(null);
+        setIsAdmin(false);
       }
-    }
+    };
+
+    syncUser();
+    window.addEventListener("sing-auth-change", syncUser);
+    return () => window.removeEventListener("sing-auth-change", syncUser);
   }, [pathname]);
 
   const navLinks = [
@@ -180,22 +196,24 @@ export function Navbar() {
           </nav>
 
           {/* Ações Direita */}
-          <div className="hidden md:flex items-center gap-2.5 shrink-0">
-            <Link
-              href="/admin"
-              className="whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/5 transition"
-              title="Área Administrativa"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#BD9472]" />
-              <span>Admin</span>
-            </Link>
+          <div className="hidden md:flex items-center gap-2 shrink-0">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#BD9472]/15 border border-[#BD9472]/40 text-[#BD9472] hover:bg-[#BD9472]/25 transition"
+                title="Painel Administrativo (Donaldson Nunes)"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#BD9472]" />
+                <span>Admin</span>
+              </Link>
+            )}
 
             <Link
               href="/conta"
               className="whitespace-nowrap flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium bg-white/5 border border-white/10 text-zinc-200 hover:border-[#BD9472]/50 hover:text-white transition"
             >
               <User className="w-3.5 h-3.5 text-[#BD9472]" />
-              <span>{userName ? userName.split(" ")[0] : "Minha Conta"}</span>
+              <span>{userName ? userName.split(" ")[0] : "Entrar / Cadastrar"}</span>
             </Link>
 
             <Link
