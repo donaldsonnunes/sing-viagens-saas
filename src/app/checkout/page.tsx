@@ -691,7 +691,7 @@ export default function CheckoutPage() {
                                 onChange={(e) =>
                                   updatePassengerField(idx, "firstName", e.target.value)
                                 }
-                                placeholder="Ex: Donaldson"
+                                placeholder="Ex: José"
                                 className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
                               />
                             </div>
@@ -707,7 +707,7 @@ export default function CheckoutPage() {
                                 onChange={(e) =>
                                   updatePassengerField(idx, "lastName", e.target.value)
                                 }
-                                placeholder="Ex: Nunes"
+                                placeholder="Ex: Silva"
                                 className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 text-xs text-[#09090B]"
                               />
                             </div>

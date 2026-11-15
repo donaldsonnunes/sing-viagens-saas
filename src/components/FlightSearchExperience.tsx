@@ -32,8 +32,8 @@ interface FlightSearchExperienceProps {
 }
 
 export function FlightSearchExperience({
-  initialOrigin = "GRU",
-  initialDestination = "GIG",
+  initialOrigin = "",
+  initialDestination = "",
   compactHeroMode = false,
 }: FlightSearchExperienceProps) {
   const router = useRouter();
@@ -46,17 +46,18 @@ export function FlightSearchExperience({
   const [showOriginDropdown, setShowOriginDropdown] = useState(false);
   const [showDestinationDropdown, setShowDestinationDropdown] = useState(false);
 
-  const [departureDate, setDepartureDate] = useState("2026-12-10");
-  const [returnDate, setReturnDate] = useState("2026-12-15");
+  const [departureDate, setDepartureDate] = useState("");
+  const [returnDate, setReturnDate] = useState("");
 
-  const [adults, setAdults] = useState(2);
-  const [childrenAges, setChildrenAges] = useState<number[]>([8]);
+  const [adults, setAdults] = useState(1);
+  const [childrenAges, setChildrenAges] = useState<number[]>([]);
   const [cabinClass, setCabinClass] = useState<"ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS">(
     "ECONOMY"
   );
   const [showPassengerPopover, setShowPassengerPopover] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [offers, setOffers] = useState<FlightOfferResult[]>([]);
   const [expandedOfferId, setExpandedOfferId] = useState<string | null>(null);
   const [selectedOutboundOffer, setSelectedOutboundOffer] =
@@ -72,11 +73,14 @@ export function FlightSearchExperience({
   const [preSearchCalendar, setPreSearchCalendar] = useState<any[]>([]);
 
   const selectedOriginAirport = useMemo(
-    () => AIRPORTS.find((a) => a.iata === originIata) || AIRPORTS[0],
+    () => (originIata ? AIRPORTS.find((a) => a.iata === originIata) || null : null),
     [originIata]
   );
   const selectedDestinationAirport = useMemo(
-    () => AIRPORTS.find((a) => a.iata === destinationIata) || AIRPORTS[3],
+    () =>
+      destinationIata
+        ? AIRPORTS.find((a) => a.iata === destinationIata) || null
+        : null,
     [destinationIata]
   );
 
@@ -109,6 +113,16 @@ export function FlightSearchExperience({
     overrideDepartureDate?: string,
     overrideStrategy?: "SMART_ECONOMY" | "CASH_FIRST" | "ALL_ELIGIBLE"
   ) => {
+    const targetDepDate = overrideDepartureDate || departureDate;
+    if (!originIata || !destinationIata || !targetDepDate) {
+      setSearchError("Selecione a origem, o destino e a data de ida para pesquisar.");
+      return;
+    }
+    if (tripType === "ROUND_TRIP" && !returnDate) {
+      setSearchError("Informe a data de volta para voos de Ida e Volta.");
+      return;
+    }
+    setSearchError("");
     setLoading(true);
     setSelectedOutboundOffer(null);
     setSelectedReturnOffer(null);
@@ -155,7 +169,9 @@ export function FlightSearchExperience({
   };
 
   useEffect(() => {
-    executeFlightSearch(false);
+    if (initialOrigin && initialDestination && departureDate) {
+      executeFlightSearch(false);
+    }
   }, []);
 
   const handleSwapAirports = () => {
@@ -384,12 +400,20 @@ export function FlightSearchExperience({
                   De onde você vai sair?
                 </div>
                 <div className="flex items-center justify-between mt-1">
-                  <span className="font-display text-sm sm:text-base font-bold text-[#09090B] truncate">
-                    {selectedOriginAirport.city}
+                  <span
+                    className={`font-display text-sm sm:text-base font-bold truncate ${
+                      selectedOriginAirport ? "text-[#09090B]" : "text-zinc-400 font-medium"
+                    }`}
+                  >
+                    {selectedOriginAirport
+                      ? selectedOriginAirport.city
+                      : "Selecione a origem"}
                   </span>
-                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-[#172C3B] text-[#E8E2D9]">
-                    {selectedOriginAirport.iata}
-                  </span>
+                  {selectedOriginAirport && (
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-[#172C3B] text-[#E8E2D9]">
+                      {selectedOriginAirport.iata}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -456,12 +480,22 @@ export function FlightSearchExperience({
                   Para onde você vai?
                 </div>
                 <div className="flex items-center justify-between mt-1">
-                  <span className="font-display text-sm sm:text-base font-bold text-[#09090B] truncate">
-                    {selectedDestinationAirport.city}
+                  <span
+                    className={`font-display text-sm sm:text-base font-bold truncate ${
+                      selectedDestinationAirport
+                        ? "text-[#09090B]"
+                        : "text-zinc-400 font-medium"
+                    }`}
+                  >
+                    {selectedDestinationAirport
+                      ? selectedDestinationAirport.city
+                      : "Selecione o destino"}
                   </span>
-                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-[#172C3B] text-[#E8E2D9]">
-                    {selectedDestinationAirport.iata}
-                  </span>
+                  {selectedDestinationAirport && (
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-[#172C3B] text-[#E8E2D9]">
+                      {selectedDestinationAirport.iata}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -666,11 +700,17 @@ export function FlightSearchExperience({
             <div className="flex items-center gap-2 text-xs text-zinc-500">
               <span className="w-2 h-2 rounded-full bg-[#BD9472]" />
               <span>
-                Eventos e arenas em{" "}
-                <strong className="text-[#09090B]">
-                  {selectedDestinationAirport.city}
-                </strong>
-                : {selectedDestinationAirport.popularEventHub}
+                {selectedDestinationAirport ? (
+                  <>
+                    Eventos e arenas em{" "}
+                    <strong className="text-[#09090B]">
+                      {selectedDestinationAirport.city}
+                    </strong>
+                    : {selectedDestinationAirport.popularEventHub}
+                  </>
+                ) : (
+                  "Escolha origem e destino para comparar passagens em tempo real."
+                )}
               </span>
             </div>
 
@@ -688,6 +728,11 @@ export function FlightSearchExperience({
               </span>
             </button>
           </div>
+          {searchError && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+              {searchError}
+            </div>
+          )}
         </div>
       </div>
 

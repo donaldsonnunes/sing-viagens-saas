@@ -73,8 +73,8 @@ export default function ContaPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [authMode, setAuthMode] = useState<"LOGIN" | "REGISTER">("LOGIN");
-  const [email, setEmail] = useState("donaldson.nunes@gmail.com");
-  const [password, setPassword] = useState("sing2026");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [regFirstName, setRegFirstName] = useState("");
   const [regLastName, setRegLastName] = useState("");
   const [regBirthDate, setRegBirthDate] = useState("");
@@ -865,7 +865,7 @@ export default function ContaPage() {
                           required
                           value={regFirstName}
                           onChange={(e) => setRegFirstName(e.target.value)}
-                          placeholder="Ex: Donaldson"
+                          placeholder="Ex: José"
                           className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
                         />
                       </div>
@@ -879,7 +879,7 @@ export default function ContaPage() {
                           required
                           value={regLastName}
                           onChange={(e) => setRegLastName(e.target.value)}
-                          placeholder="Ex: Nunes"
+                          placeholder="Ex: Silva"
                           className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
                         />
                       </div>
@@ -1224,7 +1224,7 @@ export default function ContaPage() {
                     required
                     value={paxFirstName}
                     onChange={(e) => setPaxFirstName(e.target.value)}
-                    placeholder="Ex: Donaldson"
+                    placeholder="Ex: José"
                     className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
                   />
                 </div>
@@ -1238,7 +1238,7 @@ export default function ContaPage() {
                     required
                     value={paxLastName}
                     onChange={(e) => setPaxLastName(e.target.value)}
-                    placeholder="Ex: Nunes"
+                    placeholder="Ex: Silva"
                     className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-[#09090B]"
                   />
                 </div>
