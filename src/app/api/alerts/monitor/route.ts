@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { SUPABASE_KEY, SUPABASE_URL, fetchDatabaseFromSupabase } from "@/lib/db";
+import { dispatchAlertNotifications } from "@/lib/alertNotifier";
 
 function supabaseHeaders(extra?: Record<string, string>): Record<string, string> {
   return {
@@ -170,6 +171,8 @@ async function runAlertSweep(
     }
   }
 
+  const notifications = await dispatchAlertNotifications(triggeredAlerts);
+
   return {
     success: true,
     mode,
@@ -177,6 +180,7 @@ async function runAlertSweep(
     activeAlertsCount: activeAlerts.length,
     updatedCount,
     triggeredAlerts,
+    notifications,
   };
 }
 

@@ -6,7 +6,7 @@
  * 11 dígitos iguais (ex.: 111.111.111-11, 000.000.000-00) são aceitos para
  * facilitar testes internos. Ao liberar publicamente, altere para `false`.
  */
-export const ALLOW_REPEATED_CPF_FOR_TESTING = true;
+export const ALLOW_REPEATED_CPF_FOR_TESTING = false;
 
 export function normalizeCpfDigits(cpf: string): string {
   return String(cpf || "").replace(/\D/g, "");

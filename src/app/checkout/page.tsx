@@ -76,6 +76,44 @@ export default function CheckoutPage() {
   const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
   const [paymentIntent, setPaymentIntent] = useState<any>(null);
   const [copiedPix, setCopiedPix] = useState(false);
+  const [checkingPaymentStatus, setCheckingPaymentStatus] = useState(false);
+
+  const checkOrderPaymentStatus = async (orderId: string) => {
+    if (!orderId) return;
+    setCheckingPaymentStatus(true);
+    try {
+      const res = await fetch(
+        `/api/payments/status?orderId=${encodeURIComponent(orderId)}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.status === "CONFIRMADO") {
+        setConfirmedOrder((prev: any) =>
+          prev ? { ...prev, status: "CONFIRMADO" } : prev
+        );
+        setPaymentIntent((prev: any) =>
+          prev ? { ...prev, status: "APPROVED" } : prev
+        );
+      } else if (data?.status === "CANCELADO") {
+        setConfirmedOrder((prev: any) =>
+          prev ? { ...prev, status: "CANCELADO" } : prev
+        );
+      }
+    } catch {
+      // falha silenciosa no polling
+    } finally {
+      setCheckingPaymentStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!confirmedOrder?.id || paymentIntent?.status !== "PENDING") return;
+    const interval = setInterval(() => {
+      checkOrderPaymentStatus(confirmedOrder.id);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [confirmedOrder?.id, paymentIntent?.status]);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
@@ -671,6 +709,24 @@ export default function CheckoutPage() {
                       >
                         Pagar com Cartão no Mercado Pago
                       </a>
+                    </div>
+                  )}
+
+                  {paymentIntent.status === "PENDING" && (
+                    <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200">
+                      <span className="text-[11px] text-gray-500">
+                        Verificando confirmação automática a cada 5s...
+                      </span>
+                      <button
+                        type="button"
+                        disabled={checkingPaymentStatus}
+                        onClick={() => checkOrderPaymentStatus(confirmedOrder.id)}
+                        className="px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-[#172C3B] text-[11px] font-bold hover:bg-gray-100 transition disabled:opacity-60"
+                      >
+                        {checkingPaymentStatus
+                          ? "Verificando..."
+                          : "Já paguei / Verificar Agora"}
+                      </button>
                     </div>
                   )}
                 </div>
