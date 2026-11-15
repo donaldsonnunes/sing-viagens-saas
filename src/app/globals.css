@@ -7,7 +7,7 @@
   --sing-teal: #172C3B;
   --sing-copper: #BD9472;
   --sing-sand: #E8E2D9;
-  --sing-canvas: #FAFAFA;
+  --sing-canvas: #F5F5F7;
 }
 
 html {
@@ -15,15 +15,41 @@ html {
 }
 
 body {
-  background-color: #FAFAFA;
-  color: #09090B;
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  background-color: #F5F5F7;
+  color: #1D1D1F;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
 
 h1, h2, h3, h4, .font-display {
-  font-family: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-jakarta), -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* macOS Sequoia Vibrancy & Glass Surfaces */
+.macos-glass-light {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.macos-glass-dark {
+  background: rgba(18, 23, 31, 0.78);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.macos-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 30px -10px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .font-mono-tech {

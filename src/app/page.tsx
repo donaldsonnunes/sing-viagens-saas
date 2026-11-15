@@ -15,7 +15,7 @@ import {
 
 export default function HomePage() {
   return (
-    <div className="bg-[#FAFAFA] text-[#09090B]">
+    <div className="bg-[#F5F5F7] text-[#1D1D1F]">
       {/* 1. HERO SECTION FOCADO EM PASSAGENS AÉREAS & SHOWS */}
       <section className="relative bg-[#09090B] text-white pt-24 pb-24 -mt-20 overflow-hidden border-b border-white/10 bg-grid-pattern-dark">
         <div
@@ -67,11 +67,24 @@ export default function HomePage() {
           </div>
 
           {/* DEMONSTRAÇÃO SIMPLES DE ECONOMIA EM PASSAGENS */}
-          <div className="relative rounded-2xl bg-[#0E1318]/90 border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.65)] overflow-hidden backdrop-blur-xl">
+          <div className="relative rounded-[26px] macos-glass-dark overflow-hidden">
+            {/* Barra de título estilo janela macOS */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.08] bg-white/[0.02]">
+              <div className="flex items-center gap-2" aria-hidden="true">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]/85" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]/85" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#28C840]/85" />
+              </div>
+              <span className="text-[11px] font-medium tracking-wide text-zinc-400">
+                Sing Turismo — Comparativo Inteligente
+              </span>
+              <div className="w-10" />
+            </div>
+
             {/* Carimbo redondo ilustrativo */}
             <div
               aria-hidden="true"
-              className="pointer-events-none select-none absolute top-3 right-3 sm:top-4 sm:right-4 z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-[#BD9472]/75 bg-[#09090B]/70 backdrop-blur-xs flex items-center justify-center -rotate-12 shadow-lg"
+              className="pointer-events-none select-none absolute top-11 right-3 sm:top-12 sm:right-4 z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-[#BD9472]/75 bg-[#09090B]/70 backdrop-blur-xs flex items-center justify-center -rotate-12 shadow-lg"
             >
               <div className="w-[84%] h-[84%] rounded-full border border-[#BD9472]/45 flex flex-col items-center justify-center text-center px-1">
                 <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-[0.2em] text-[#BD9472]/80">
@@ -175,7 +188,7 @@ export default function HomePage() {
       </section>
 
       {/* 3. MOTOR DE PESQUISA DE PASSAGENS AÉREAS */}
-      <section id="pesquisa-motor" className="py-20 bg-[#FAFAFA] bg-grid-pattern-light">
+      <section id="pesquisa-motor" className="py-20 bg-[#F5F5F7]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="space-y-2">

@@ -429,18 +429,18 @@ export function FlightSearchExperience({
   return (
     <div className="space-y-8">
       {/* BUSCADOR EXCLUSIVO DE PASSAGENS AÉREAS */}
-      <div className="rounded-2xl bg-white border border-zinc-200/80 shadow-[0_20px_50px_rgba(9,9,11,0.07)] p-5 sm:p-7 text-[#09090B]">
+      <div className="rounded-[26px] macos-glass-light p-5 sm:p-7 text-[#1D1D1F]">
         {/* Topo de Controles: Ida e Volta / Somente Ida + Classe */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-zinc-100">
-          <div className="flex items-center gap-2 text-sm font-bold text-[#09090B]">
-            <div className="w-8 h-8 rounded-lg bg-[#09090B] text-[#BD9472] flex items-center justify-center">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-black/[0.06]">
+          <div className="flex items-center gap-2.5 text-sm font-bold text-[#1D1D1F]">
+            <div className="w-8 h-8 rounded-xl bg-[#172C3B] text-[#BD9472] flex items-center justify-center shadow-xs">
               <Plane className="w-4 h-4" />
             </div>
             <span>Pesquisar Passagens Aéreas</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 text-xs">
-            <div className="inline-flex rounded-xl bg-zinc-100 p-1 border border-zinc-200/60">
+            <div className="inline-flex rounded-xl bg-black/[0.05] p-1 border border-black/[0.04]">
               <button
                 type="button"
                 onClick={() => setTripType("ROUND_TRIP")}
@@ -490,7 +490,7 @@ export function FlightSearchExperience({
                   setShowOriginDropdown(true);
                   setShowDestinationDropdown(false);
                 }}
-                className="cursor-pointer rounded-2xl bg-[#FAFAFA] border border-zinc-200 hover:border-[#BD9472] px-4 py-3 transition-all"
+                className="cursor-pointer rounded-2xl bg-[#F5F5F7]/90 border border-black/[0.06] hover:border-[#BD9472]/70 hover:bg-white px-4 py-3 transition-all duration-200"
               >
                 <div className="text-[11px] font-medium text-zinc-400">
                   De onde você vai sair?
@@ -570,7 +570,7 @@ export function FlightSearchExperience({
                   setShowDestinationDropdown(true);
                   setShowOriginDropdown(false);
                 }}
-                className="cursor-pointer rounded-2xl bg-[#FAFAFA] border border-zinc-200 hover:border-[#BD9472] px-4 py-3 transition-all"
+                className="cursor-pointer rounded-2xl bg-[#F5F5F7]/90 border border-black/[0.06] hover:border-[#BD9472]/70 hover:bg-white px-4 py-3 transition-all duration-200"
               >
                 <div className="text-[11px] font-medium text-zinc-400">
                   Para onde você vai?
@@ -635,7 +635,7 @@ export function FlightSearchExperience({
 
             {/* Datas */}
             <div className="lg:col-span-3 grid grid-cols-2 gap-2">
-              <div className="rounded-2xl bg-[#FAFAFA] border border-zinc-200 px-3.5 py-3">
+              <div className="rounded-2xl bg-[#F5F5F7]/90 border border-black/[0.06] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#BD9472]/15 px-3.5 py-3 transition-all">
                 <div className="text-[11px] font-medium text-zinc-400">
                   Data de Ida
                 </div>
@@ -647,7 +647,7 @@ export function FlightSearchExperience({
                 />
               </div>
               <div
-                className={`rounded-2xl bg-[#FAFAFA] border border-zinc-200 px-3.5 py-3 ${
+                className={`rounded-2xl bg-[#F5F5F7]/90 border border-black/[0.06] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#BD9472]/15 px-3.5 py-3 transition-all ${
                   tripType === "ONE_WAY" ? "opacity-40" : ""
                 }`}
               >

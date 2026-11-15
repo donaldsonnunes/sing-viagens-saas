@@ -156,7 +156,7 @@ export function Navbar() {
 
   return (
     <div className="sticky top-0 z-50 px-3 sm:px-6 pt-3 pb-1 pointer-events-none">
-      <header className="pointer-events-auto max-w-6xl mx-auto rounded-2xl bg-[#09090B]/90 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.28)] text-white transition-all duration-300">
+      <header className="pointer-events-auto max-w-6xl mx-auto rounded-2xl bg-[#12161E]/75 backdrop-blur-2xl saturate-150 border border-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.14)] text-white transition-all duration-300">
         <div className="px-4 sm:px-5 h-16 flex items-center justify-between gap-3 overflow-hidden">
           {/* Logo Limpo (Sem badge técnico v2.0) */}
           <Link href="/" className="flex items-center gap-3 shrink-0 group">
@@ -201,7 +201,7 @@ export function Navbar() {
               <Link
                 href="/admin"
                 className="whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#BD9472]/15 border border-[#BD9472]/40 text-[#BD9472] hover:bg-[#BD9472]/25 transition"
-                title="Painel Administrativo (Donaldson Nunes)"
+                title="Painel Administrativo"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-[#BD9472]" />
                 <span>Admin</span>
