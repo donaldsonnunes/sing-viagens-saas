@@ -4,6 +4,15 @@ Todas as alterações sistêmicas, evoluções de escopo, regras de negócio e a
 
 ---
 
+## [2.10.3] — 2026-11-15
+### Adicionado (Isolamento por Ocupação na Interseção e Consulta Incremental de Provedores)
+- **Ocupação (`ADT/CHD/INF`) na chave de interseção (`src/lib/apiViagensService.ts`)**:
+  - `outboundLegKey` e `inboundLegKey` agora incluem `ADT:<n>_CHD:<n>_INF:<n>`, evitando que buscas com quantidades diferentes de adultos/crianças/bebês compartilhem o mesmo cache de trecho.
+- **Consulta Incremental de Provedores Faltantes (`partialEntry` + `providersToQuery`)**:
+  - Ao expandir uma busca já em cache (ex.: de **1 Créd. (Tarifado)** para **Smart (Top 3)** ou de **Smart (Top 3)** para **Completo / Incluir agora**), o serviço consulta na APIVIAGENS **apenas os provedores faltantes** (ex.: só `azul`), mescla as ofertas com o cache existente sem duplicatas e preserva o cache anterior mesmo se o novo provedor retornar vazio.
+
+---
+
 ## [2.10.2] — 2026-11-15
 ### Adicionado (Visibilidade de Cias Elegíveis Poupadas e Alerta de Hub Azul em `/pesquisa`)
 - **Indicador de Provedores Elegíveis fora do Filtro (`src/components/FlightSearchExperience.tsx`)**:

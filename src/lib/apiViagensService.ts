@@ -786,30 +786,34 @@ export async function searchFlightsWithApiViagensOptimization(params: {
   const nowMs = Date.now();
   const existingCache = searchCache.get(cacheKey);
 
-  // Chave de Interseção Atômica do Trecho de Ida: permite reaproveitar o trecho de ida
-  // mesmo quando o próximo usuário muda a data de volta ou busca apenas "Somente Ida"!
+  // Chave de Interseção Atômica do Trecho de Ida (inclui ocupação ADT/CHD/INF):
+  // permite reaproveitar o trecho de ida quando a data de volta muda, sem misturar buscas com nº diferente de passageiros.
+  const childrenCount = params.searchParams.childrenAges.filter((a) => a >= 2).length;
+  const infantsCount = params.searchParams.childrenAges.filter((a) => a < 2).length;
+  const paxSignature = `ADT:${params.searchParams.adults}_CHD:${childrenCount}_INF:${infantsCount}`;
   const outboundLegKey = `leg_${params.searchParams.origin.toUpperCase()}_${params.searchParams.destination.toUpperCase()}_${
     params.searchParams.departureDate
-  }_${params.searchParams.cabinClass}`;
+  }_${params.searchParams.cabinClass}_${paxSignature}`;
   const existingLegIntersection = legInventoryIndex.get(outboundLegKey);
 
   // 3. Verifica Cache Ativo ou Interseção Atômica de Trecho (Memória + Fallback Persistente no Supabase)
   // Se shouldCallLiveApi === true, não aceita cache puramente simulado (isLiveData === false).
   // Também exige que o cache cubra todos os provedores solicitados pela estratégia atual
-  // (ex.: alternar de "1 Créd. (Tarifado)" para "Smart" ou "Completo" deve consultar os novos provedores).
-  const isEntryValidForRequest = (entry?: CacheEntry<any> | null) => {
+  // (ex.: alternar de "1 Créd. (Tarifado)" para "Smart" ou "Completo" consulta apenas os provedores faltantes).
+  const isEntryFreshAndModeCompatible = (entry?: CacheEntry<any> | null) => {
     if (!entry || entry.expiresAtMs <= nowMs) return false;
     if (shouldCallLiveApi && entry.isLiveData === false) return false;
-    if (
-      !routeSelection.queriedProviders.every((p) =>
-        entry.providers.includes(p)
-      )
-    ) {
-      return false;
-    }
     return true;
   };
 
+  const isEntryValidForRequest = (entry?: CacheEntry<any> | null) => {
+    if (!isEntryFreshAndModeCompatible(entry)) return false;
+    return routeSelection.queriedProviders.every((p) =>
+      entry!.providers.includes(p)
+    );
+  };
+
+  let dbIntersection: CacheEntry<FlightOfferResult[]> | null = null;
   let hitEntry =
     (!params.forceRefresh && isEntryValidForRequest(existingCache)
       ? existingCache
@@ -820,7 +824,7 @@ export async function searchFlightsWithApiViagensOptimization(params: {
 
   // Se não achou na memória (ex.: cold start serverless), consulta a função SQL query_flight_intersection no Supabase
   if (!hitEntry && !params.forceRefresh) {
-    const dbIntersection = await fetchFlightIntersectionFromSupabase(
+    dbIntersection = await fetchFlightIntersectionFromSupabase(
       params.searchParams
     );
     if (isEntryValidForRequest(dbIntersection)) {
@@ -829,6 +833,24 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       searchCache.set(cacheKey, dbIntersection!);
     }
   }
+
+  // Se já existe cache válido de uma estratégia menor (ex.: Smart -> Completo), consulta apenas os provedores faltantes!
+  const partialEntry: CacheEntry<FlightOfferResult[]> | null =
+    !hitEntry && !params.forceRefresh
+      ? (isEntryFreshAndModeCompatible(existingCache) ? existingCache : null) ||
+        (isEntryFreshAndModeCompatible(existingLegIntersection)
+          ? existingLegIntersection
+          : null) ||
+        (isEntryFreshAndModeCompatible(dbIntersection) ? dbIntersection : null)
+      : null;
+
+  const missingProviders = partialEntry
+    ? routeSelection.queriedProviders.filter(
+        (p) => !partialEntry.providers.includes(p)
+      )
+    : routeSelection.queriedProviders;
+  const providersToQuery =
+    missingProviders.length > 0 ? missingProviders : routeSelection.queriedProviders;
 
   if (hitEntry) {
     sessionMetrics.cacheHits += 1;
@@ -907,13 +929,13 @@ export async function searchFlightsWithApiViagensOptimization(params: {
   // 5. Executa a busca (Real na APIVIAGENS apenas quando allowLiveCreditSpend === true, protegendo os 1.000 créditos de teste)
   const executionPromise = (async () => {
     let offers: FlightOfferResult[] = [];
-    let actualProviderCalls = routeSelection.creditsUsedEstimate;
+    let actualProviderCalls = providersToQuery.length;
 
     if (shouldCallLiveApi) {
       try {
         const startLiveMs = Date.now();
         // Filtra providers que deram "Sem resultado" / "timeout" nos últimos 15 min nesta mesma rota/data
-        const activeProviders = routeSelection.queriedProviders.filter((p) => {
+        const activeProviders = providersToQuery.filter((p) => {
           const negKey = `neg_${params.searchParams.origin}_${params.searchParams.destination}_${params.searchParams.departureDate}_${p}`;
           const exp = negativeProviderCache.get(negKey);
           return !exp || exp <= Date.now();
@@ -994,7 +1016,24 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       }
     }
 
-    const isLiveDataResult = shouldCallLiveApi && offers.length > 0;
+    const isLiveDataResult =
+      (shouldCallLiveApi && offers.length > 0) ||
+      Boolean(partialEntry?.isLiveData);
+
+    // Mescla resultados novos com o cache parcial anterior (ex.: Smart -> Completo consultando só Azul)
+    if (partialEntry && partialEntry.data.length > 0) {
+      const mergedMap = new Map<string, FlightOfferResult>();
+      for (const item of [...partialEntry.data, ...offers]) {
+        if (!mergedMap.has(item.id)) {
+          mergedMap.set(item.id, item);
+        }
+      }
+      offers = Array.from(mergedMap.values()).sort(
+        (a, b) =>
+          a.pricingBreakdown.singFinalSalePriceTotal -
+          b.pricingBreakdown.singFinalSalePriceTotal
+      );
+    }
 
     if (offers.length === 0) {
       const simulated = searchAndCompareFlights(params.searchParams, params.pricingConfig);
@@ -1007,7 +1046,11 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       }));
     }
 
-    const ttl = routeSelection.queriedProviders.includes("tarifado")
+    const mergedProviders = partialEntry
+      ? Array.from(new Set([...partialEntry.providers, ...providersToQuery]))
+      : routeSelection.queriedProviders;
+
+    const ttl = mergedProviders.includes("tarifado")
       ? OFFER_CACHE_TTL_MS
       : MILES_CACHE_TTL_MS;
 
@@ -1016,7 +1059,7 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       data: offers,
       createdAtMs: Date.now(),
       expiresAtMs: Date.now() + ttl,
-      providers: routeSelection.queriedProviders,
+      providers: mergedProviders,
       isLiveData: isLiveDataResult,
     });
 
@@ -1026,20 +1069,20 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       data: offers,
       createdAtMs: Date.now(),
       expiresAtMs: Date.now() + ttl,
-      providers: routeSelection.queriedProviders,
+      providers: mergedProviders,
       isLiveData: isLiveDataResult,
     });
 
     if (params.searchParams.tripType === "ROUND_TRIP" && params.searchParams.returnDate) {
       const inboundLegKey = `leg_${params.searchParams.destination.toUpperCase()}_${params.searchParams.origin.toUpperCase()}_${
         params.searchParams.returnDate
-      }_${params.searchParams.cabinClass}`;
+      }_${params.searchParams.cabinClass}_${paxSignature}`;
       legInventoryIndex.set(inboundLegKey, {
         key: inboundLegKey,
         data: offers,
         createdAtMs: Date.now(),
         expiresAtMs: Date.now() + ttl,
-        providers: routeSelection.queriedProviders,
+        providers: mergedProviders,
         isLiveData: isLiveDataResult,
       });
     }
@@ -1051,8 +1094,8 @@ export async function searchFlightsWithApiViagensOptimization(params: {
     void persistLegInventoryToSupabase({
       searchParams: params.searchParams,
       offers,
-      providers: routeSelection.queriedProviders,
-      sourceType: shouldCallLiveApi ? "APIVIAGENS_LIVE" : "SING_HYBRID_ENGINE",
+      providers: mergedProviders,
+      sourceType: isLiveDataResult ? "APIVIAGENS_LIVE" : "SING_HYBRID_ENGINE",
       ttlMs: ttl,
     });
 
@@ -1060,11 +1103,17 @@ export async function searchFlightsWithApiViagensOptimization(params: {
       ? actualProviderCalls * CREDITS_PER_PROVIDER_SEARCH
       : 0;
     sessionMetrics.creditsConsumed += realCreditsSpent;
+    const incrementalReusedProviders = Math.max(
+      0,
+      routeSelection.creditsUsedEstimate - providersToQuery.length
+    );
     // Se for ROUND_TRIP, consolidar ida+volta na mesma chamada poupou o dobro de requisições!
     const roundTripBonusSaved =
       params.searchParams.tripType === "ROUND_TRIP" ? actualProviderCalls : 0;
     const totalSavedThisCall =
-      (routeSelection.creditsSavedByFilter + roundTripBonusSaved) *
+      (routeSelection.creditsSavedByFilter +
+        incrementalReusedProviders +
+        roundTripBonusSaved) *
       CREDITS_PER_PROVIDER_SEARCH;
     sessionMetrics.creditsSaved += totalSavedThisCall;
 
@@ -1075,15 +1124,21 @@ export async function searchFlightsWithApiViagensOptimization(params: {
 
   try {
     const offers = await executionPromise;
+    const incrementalReusedProviders = Math.max(
+      0,
+      routeSelection.creditsUsedEstimate - providersToQuery.length
+    );
     const roundTripBonusSaved =
       params.searchParams.tripType === "ROUND_TRIP"
-        ? routeSelection.creditsUsedEstimate
+        ? providersToQuery.length
         : 0;
     const creditsSavedThisCall =
-      (routeSelection.creditsSavedByFilter + roundTripBonusSaved) *
+      (routeSelection.creditsSavedByFilter +
+        incrementalReusedProviders +
+        roundTripBonusSaved) *
       CREDITS_PER_PROVIDER_SEARCH;
     const creditsConsumedThisCall = shouldCallLiveApi
-      ? routeSelection.creditsUsedEstimate * CREDITS_PER_PROVIDER_SEARCH
+      ? providersToQuery.length * CREDITS_PER_PROVIDER_SEARCH
       : 0;
 
     const telemetry: ApiViagensOptimizationTelemetry = {
