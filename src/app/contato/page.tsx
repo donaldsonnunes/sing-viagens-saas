@@ -34,7 +34,7 @@ export default function ContatoPage() {
           <div className="rounded-2xl bg-[#172C3B] text-[#E8E2D9] p-7 border border-[#BD9472]/40 space-y-5">
             <h2 className="text-xl font-bold text-white">Canais Diretos Sing Viagens</h2>
             <p className="text-xs sm:text-sm text-[#E8E2D9]/80">
-              Nosso tempo médio de resposta no horário comercial e plantão de voos é de menos de 5 minutos.
+              Nosso tempo médio de resposta pelo WhatsApp e e-mail no horário comercial é de menos de 5 minutos.
             </p>
 
             <a
@@ -44,21 +44,17 @@ export default function ContatoPage() {
               className="w-full flex items-center justify-center gap-2 py-3.5 px-5 rounded-xl bg-[#BD9472] text-[#0E1B24] font-bold text-sm hover:bg-[#D4AF8E] transition shadow"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Chamar Direto no WhatsApp VIP</span>
+              <span>Chamar Direto no WhatsApp</span>
             </a>
 
             <div className="space-y-3 pt-4 border-t border-white/10 text-xs sm:text-sm">
               <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-[#BD9472]" />
-                <span>Telefone / Plantão: +55 (11) 99800-7464</span>
-              </div>
-              <div className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-[#BD9472]" />
-                <span>concierge@singviagens.com.br</span>
+                <span>contato@singviagens.com.br</span>
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="w-4 h-4 text-[#BD9472]" />
-                <span>Seg a Sex 08h às 20h • Sáb 09h às 15h • Plantão 24h p/ Clientes</span>
+                <span>Seg a Sex 08h às 20h • Sáb 09h às 15h</span>
               </div>
             </div>
           </div>

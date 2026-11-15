@@ -60,7 +60,7 @@ export function Footer() {
           <div className="pt-1 space-y-1.5 text-xs text-zinc-400">
             <div className="flex items-center gap-2">
               <Phone className="w-3.5 h-3.5 text-[#BD9472]" />
-              <span>+55 (11) 99800-7464 (Atendimento & Plantão)</span>
+              <span>+55 (11) 99800-7464 (WhatsApp)</span>
             </div>
             <div className="flex items-center gap-2">
               <Mail className="w-3.5 h-3.5 text-[#BD9472]" />
